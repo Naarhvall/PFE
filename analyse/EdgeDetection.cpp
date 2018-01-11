@@ -36,10 +36,12 @@ Mat EdgeDetection::colorCalibration(Mat img){
     ///On manipule le mask afin de ne récupérer que les 4 coins
     Mat maskTemp = mask.clone();
     cv::floodFill(maskTemp, cv::Point(StartingPointX, StartingPointY), CV_RGB(0, 0, 0));
+
     ///Inversion du mask
     maskTemp = ~maskTemp;
     mask = maskTemp & mask;
     cv::floodFill(mask, cv::Point(0,0), CV_RGB(255, 255, 255));
+
 
     ///On enlève les parasites
     Mat kernel;
@@ -107,6 +109,149 @@ vector<Point2i> EdgeDetection::getCorner(Mat img) {
         StartingPointY = (coordCorner[0].y + coordCorner[1].y)/2 ;
     }
 
+    /// cherche les coins sur le masque nouvelle version : pas de blobs
+    int rows = mask.rows;
+    int cols = mask.cols;
+//    int minX = cols , minXy, minY = rows, minYx, maxX =0 , maxXy, maxY=0, maxYx;
+
+    /// recréation d'un mask quivabien
+    Mat newMask;
+    Mat imgGrey;
+    cvtColor(img, imgGrey, COLOR_RGB2GRAY);
+    auto midGrey = (int)imgGrey.at<uchar>(StartingPointY, StartingPointX);
+    inRange(imgGrey, midGrey-40, midGrey+40, newMask);
+    Mat maskTemp = newMask.clone();
+    cv::floodFill(maskTemp, cv::Point(StartingPointX, StartingPointY), CV_RGB(0, 0, 0));
+    maskTemp = ~maskTemp;
+    newMask = maskTemp & newMask;
+    maskTemp = newMask.clone();
+    cv::floodFill(maskTemp, cv::Point(0,0), CV_RGB(255, 255, 255));
+    maskTemp = ~maskTemp;
+    newMask= newMask | maskTemp;
+    Mat kernel1;
+    kernel1 = getStructuringElement(2, Size(7,7), Point(2,2));
+    dilate(newMask, newMask, kernel1);
+    erode(newMask, newMask, kernel1);
+
+    int kernel = 5;
+    int voisin = 30 ;
+    int tab[3][4] = {{0,0,0,0},
+                     {0,0,0,0},
+                     {0,0,0,0}};
+    int nbNoirs,rangProche,minNoirs,rangMin ;
+    for(int i=0 ; i<rows ; i++){
+        for(int j =0 ; j<cols ; j++){
+            if(newMask.at<uchar>(i,j) == 255){
+                 nbNoirs = 0;
+                //calcul du nb de noirs dans le voisinage
+                for(int ii = i-kernel ; ii <i+kernel ; ii++){
+                    for(int jj = j-kernel ; jj<j+kernel ; jj++){
+                        if(ii >= 0 && ii<rows && jj>=0 && jj<cols && newMask.at<uchar>(ii,jj) == 0){
+                            nbNoirs++;
+                           // cout << ii <<" "<< jj << endl ;
+                        }
+                    }
+                }
+                if(nbNoirs > kernel*kernel*2){
+                    // on regarde si il est proche d'un autre point
+                    rangProche = -1 ;
+                    for(int iTab = 0 ; iTab<4 ; iTab++){
+                        if( i > tab[iTab][2]-voisin && i < tab[iTab][2]+voisin && j > tab[iTab][1]-voisin && j < tab[iTab][1]+voisin){
+                            rangProche = iTab ;
+                        }
+                    }
+                    //si oui
+                    if(rangProche != -1 && nbNoirs > tab[rangProche][0]){
+                        tab[rangProche][0] = nbNoirs ;
+                        tab[rangProche][1] = j ;
+                        tab[rangProche][2] = i ;
+                    }
+                    else if(rangProche == -1){
+                        minNoirs = kernel*kernel*4;
+                        rangMin = 0;
+                        for(int iTab =0 ; iTab<4 ; iTab++){
+                            if(tab[iTab][0] < minNoirs){
+                                minNoirs = tab[iTab][0];
+                                rangMin = iTab ;
+                            }
+                        }
+                        if( minNoirs<nbNoirs){
+                            tab[rangMin][0] = nbNoirs ;
+                            tab[rangMin][1] = j ;
+                            tab[rangMin][2] = i ;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for(int i=0 ; i<4 ; i++){
+        circle(newMask, Point(tab[i][1],tab[i][2]),i+8,Scalar(255,0,0));
+        //cout << tab[i][0]<< " " <<tab[i][1]<< " " << tab[i][2]<<endl;
+    }
+//    /// cas "rectangle incliné" minx, maxx, miny, maxy
+//    for (int i = 0 ; i <rows ; i++ ){
+//        for (int j = 0 ; j <cols ; j++ ){
+//            if(newMask.at<uchar>(i,j) == 255){
+//                if(j < minX) {
+//                    minX = j;
+//                    minXy = i;
+//                }if(j >= maxX){
+//                    maxX = j;
+//                    maxXy = i;
+//                }if(i < minY) {
+//                    minY = i;
+//                    minYx = j;
+//                }if(i >= maxY){
+//                    maxY = i;
+//                    maxYx = j;
+//                }
+//            }
+//        }
+//    }
+//    ///cas "trapeze"
+//    if(maxY == minXy || maxY == maxXy){
+//        double m_min, m_max, p_min, p_max ;
+//        //droite entre miny et minx y=m_min*x+p_min
+//        m_min = double(minY-minXy)/double(minYx-minX);
+//        p_min = minY-m_min*minYx;
+//
+//        //droite entre miny et maxx y=m_max*x+p_max
+//        m_max = double(minY-maxXy)/double(minYx-maxX);
+//        p_max =minY-m_max*minYx;
+//
+//        double distMax = 0;
+//        int X=0,Y=0;
+//        for (int i = minY ; i <maxY ; i++ ) {
+//            for (int j = minX; j < maxX; j++) {
+//                if (newMask.at<uchar>(i, j) == 255) {
+//                    double dist = 0;
+//                    if (j < minYx && m_min * j + p_min > i) {
+//                        dist = abs(m_min * j - i + p_min) / sqrt(1 + m_min * m_min);
+//                        //calculer distance (ij) à droite miny/minx
+//                    } else if (j > minYx && m_max * j + p_max > i) {
+//                        dist = abs(m_max * j - i + p_max) / sqrt(1 + m_max * m_max);
+//                        //calculer distance (ij) à droite miny/maxx
+//                    }
+//                    if (dist > distMax) {
+//                        X = j;
+//                        Y = i;
+//                        distMax = dist;
+//                    }
+//                }
+//            }
+//        }
+//        cout << distMax << " " << X << " "<<Y<< endl;
+//        circle(newMask, Point(X,Y),25,Scalar(255,0,0));
+//    }
+//    circle(newMask, Point(minX,minXy),3,Scalar(255,0,0));
+//    circle(newMask, Point(maxX,maxXy),5,Scalar(255,0,0));
+//
+//    circle(newMask, Point(minYx,minY),7,Scalar(255,0,0));
+//    circle(newMask, Point(maxYx,maxY),9,Scalar(255,0,0));
+
+    namedWindow("mask",WINDOW_AUTOSIZE);
+    imshow("mask", newMask);
     return coordCorner;
 
 }
