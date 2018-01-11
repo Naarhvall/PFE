@@ -28,7 +28,6 @@ int main(int argc, char** argv){
     namedWindow("aMAZEd Calibration");
 
     while(true){
-
         Mat currentFrame = cameraStream->getCurrentFrame();
         putText(currentFrame, "Press enter to play 3D mode", Point2i(0, currentFrame.rows - 50), FONT_HERSHEY_PLAIN, 2, Scalar(0, 0, 255), 2);
         putText(currentFrame, "Press space bar to play normal mode", Point2i(0, currentFrame.rows), FONT_HERSHEY_PLAIN, 2, Scalar(0, 0, 255), 2);
@@ -86,10 +85,11 @@ void loop(int endGame){
     }
     window->setFps(fps);
 
-    EdgeDetection edgeDetection = EdgeDetection();
+
 
     vector<Point2i> coordCorner;
     Mat currentFrame = cameraStream->getCurrentFrame();
+    EdgeDetection edgeDetection = EdgeDetection(currentFrame);
     coordCorner = edgeDetection.getCorner(currentFrame);
 
     /// Si les 4 coins ont été détéctées
@@ -176,9 +176,10 @@ void loop(int endGame){
 void setupMaze(){
 
     /// Calibration des couleurs
-    EdgeDetection edgeDetection = EdgeDetection();
+
 
     Mat currentFrame = cameraStream->getCurrentFrame();
+    EdgeDetection edgeDetection = EdgeDetection(currentFrame);
 
     vector<Point2i> coordCorner;
     vector<Point2i> coordStartEnd;

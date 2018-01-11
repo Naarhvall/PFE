@@ -30,6 +30,8 @@ private:
 
 public:
 
+    EdgeDetection(cv::Mat img);
+
      /** Permet de trouver la teinte et la saturation des coins du plan
       * @param
      *      img : l'image où trouver les lignes

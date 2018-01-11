@@ -9,7 +9,22 @@ using namespace cv;
 ///Coordonnées du point permettant la calibration pour la mask sur le niveau de gris
 int StartingPointX = 0 ;
 int StartingPointY = 0;
+int points[4][2];
 
+EdgeDetection::EdgeDetection(Mat img){
+
+    points[0][0] = 0 ;
+    points[0][1] = 0 ;
+
+    points[1][0] = img.cols ;
+    points[1][1] = 0 ;
+
+    points[2][0] = img.cols ;
+    points[2][1] = img.rows ;
+
+    points[3][0] = 0 ;
+    points[3][1] = img.rows ;
+}
 
 ///Fonction permettant la calibration de la couleur
 Mat EdgeDetection::colorCalibration(Mat img){
@@ -68,46 +83,46 @@ vector<Point2i> EdgeDetection::getCorner(Mat img) {
     vector<Point2i> coordCorner;
     ///Déclaration et calcul de l'image hsv
     Mat hsv;
-    cvtColor(img, hsv, CV_BGR2HSV);
-
-    ///Paramètre pour la détection des composantes connexes
-    SimpleBlobDetector::Params params;
-    params.minThreshold = 0;
-    params.maxThreshold = 100;
-    params.filterByArea = true;
-    params.minArea = 100;
-    params.maxArea = 10000;
-    params.filterByCircularity = false;
-    params.filterByConvexity = false;
-    params.filterByInertia = false;
-
-    Ptr<cv::SimpleBlobDetector> detector = cv::SimpleBlobDetector::create(params);
-    detector->detect(mask, keypoints);
-
-//    drawKeypoints( mask, keypoints, mask, Scalar(0,0,255), DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
-
-    /// si plus de 4 composantes connexes trouvées on prends les 4 plus grosses
-    if(keypoints.size() > 3 && keypoints.size() == 6){
-        ///On cherche le plus grand et on le prends
-        for(int i=0 ; i<4 ; i++ ){
-            int imax = 0;
-            for(int j = 1 ; j< keypoints.size() ; j++) {
-                if (keypoints[j].size > keypoints[imax].size) {
-                    imax = j;
-                }
-            }
-            coordCorner.push_back(keypoints[imax].pt);
-            keypoints[imax].size = 0;
-        }
-    }
+//    cvtColor(img, hsv, CV_BGR2HSV);
+//
+//    ///Paramètre pour la détection des composantes connexes
+//    SimpleBlobDetector::Params params;
+//    params.minThreshold = 0;
+//    params.maxThreshold = 100;
+//    params.filterByArea = true;
+//    params.minArea = 100;
+//    params.maxArea = 10000;
+//    params.filterByCircularity = false;
+//    params.filterByConvexity = false;
+//    params.filterByInertia = false;
+//
+//    Ptr<cv::SimpleBlobDetector> detector = cv::SimpleBlobDetector::create(params);
+//    detector->detect(mask, keypoints);
+//
+////    drawKeypoints( mask, keypoints, mask, Scalar(0,0,255), DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
+//
+//    /// si plus de 4 composantes connexes trouvées on prends les 4 plus grosses
+//    if(keypoints.size() > 3 && keypoints.size() == 6){
+//        ///On cherche le plus grand et on le prends
+//        for(int i=0 ; i<4 ; i++ ){
+//            int imax = 0;
+//            for(int j = 1 ; j< keypoints.size() ; j++) {
+//                if (keypoints[j].size > keypoints[imax].size) {
+//                    imax = j;
+//                }
+//            }
+//            coordCorner.push_back(keypoints[imax].pt);
+//            keypoints[imax].size = 0;
+//        }
+//    }
 
 
     /// Si on a 4 coins, on met à jour le point de calibration
-    if(coordCorner.size() == 4) {
-        coordCorner = sortPoints(coordCorner, hsv);
-        StartingPointX = (coordCorner[0].x + coordCorner[1].x)/2 ;
-        StartingPointY = (coordCorner[0].y + coordCorner[1].y)/2 ;
-    }
+//    if(coordCorner.size() == 4) {
+//        coordCorner = sortPoints(coordCorner, hsv);
+//        StartingPointX = (coordCorner[0].x + coordCorner[1].x)/2 ;
+//        StartingPointY = (coordCorner[0].y + coordCorner[1].y)/2 ;
+//    }
 
     /// cherche les coins sur le masque nouvelle version : pas de blobs
     int rows = mask.rows;
@@ -133,11 +148,13 @@ vector<Point2i> EdgeDetection::getCorner(Mat img) {
     dilate(newMask, newMask, kernel1);
     erode(newMask, newMask, kernel1);
 
-    int kernel = 5;
+    int kernel = 7;
     int voisin = 30 ;
-    int tab[3][4] = {{0,0,0,0},
-                     {0,0,0,0},
-                     {0,0,0,0}};
+    int tab[4][3] = {{0,0,0},
+                     {0,0,0},
+                     {0,0,0},
+                     {0,0,0}};
+
     int nbNoirs,rangProche,minNoirs,rangMin ;
     for(int i=0 ; i<rows ; i++){
         for(int j =0 ; j<cols ; j++){
@@ -187,69 +204,12 @@ vector<Point2i> EdgeDetection::getCorner(Mat img) {
     }
     for(int i=0 ; i<4 ; i++){
         circle(newMask, Point(tab[i][1],tab[i][2]),i+8,Scalar(255,0,0));
-        //cout << tab[i][0]<< " " <<tab[i][1]<< " " << tab[i][2]<<endl;
+        coordCorner.push_back(Point(tab[i][1],tab[i][2]));
     }
-//    /// cas "rectangle incliné" minx, maxx, miny, maxy
-//    for (int i = 0 ; i <rows ; i++ ){
-//        for (int j = 0 ; j <cols ; j++ ){
-//            if(newMask.at<uchar>(i,j) == 255){
-//                if(j < minX) {
-//                    minX = j;
-//                    minXy = i;
-//                }if(j >= maxX){
-//                    maxX = j;
-//                    maxXy = i;
-//                }if(i < minY) {
-//                    minY = i;
-//                    minYx = j;
-//                }if(i >= maxY){
-//                    maxY = i;
-//                    maxYx = j;
-//                }
-//            }
-//        }
-//    }
-//    ///cas "trapeze"
-//    if(maxY == minXy || maxY == maxXy){
-//        double m_min, m_max, p_min, p_max ;
-//        //droite entre miny et minx y=m_min*x+p_min
-//        m_min = double(minY-minXy)/double(minYx-minX);
-//        p_min = minY-m_min*minYx;
-//
-//        //droite entre miny et maxx y=m_max*x+p_max
-//        m_max = double(minY-maxXy)/double(minYx-maxX);
-//        p_max =minY-m_max*minYx;
-//
-//        double distMax = 0;
-//        int X=0,Y=0;
-//        for (int i = minY ; i <maxY ; i++ ) {
-//            for (int j = minX; j < maxX; j++) {
-//                if (newMask.at<uchar>(i, j) == 255) {
-//                    double dist = 0;
-//                    if (j < minYx && m_min * j + p_min > i) {
-//                        dist = abs(m_min * j - i + p_min) / sqrt(1 + m_min * m_min);
-//                        //calculer distance (ij) à droite miny/minx
-//                    } else if (j > minYx && m_max * j + p_max > i) {
-//                        dist = abs(m_max * j - i + p_max) / sqrt(1 + m_max * m_max);
-//                        //calculer distance (ij) à droite miny/maxx
-//                    }
-//                    if (dist > distMax) {
-//                        X = j;
-//                        Y = i;
-//                        distMax = dist;
-//                    }
-//                }
-//            }
-//        }
-//        cout << distMax << " " << X << " "<<Y<< endl;
-//        circle(newMask, Point(X,Y),25,Scalar(255,0,0));
-//    }
-//    circle(newMask, Point(minX,minXy),3,Scalar(255,0,0));
-//    circle(newMask, Point(maxX,maxXy),5,Scalar(255,0,0));
-//
-//    circle(newMask, Point(minYx,minY),7,Scalar(255,0,0));
-//    circle(newMask, Point(maxYx,maxY),9,Scalar(255,0,0));
-
+    /// Si on a 4 coins, on met à jour le point de calibration
+    coordCorner = sortPoints(coordCorner, hsv);
+    StartingPointX = (coordCorner[0].x + coordCorner[1].x + coordCorner[2].x + coordCorner[3].x)/4 ;
+    StartingPointY = (coordCorner[0].y + coordCorner[1].y + coordCorner[2].y + coordCorner[3].y)/4 ;
     namedWindow("mask",WINDOW_AUTOSIZE);
     imshow("mask", newMask);
     return coordCorner;
@@ -278,6 +238,12 @@ vector<Point2i> EdgeDetection::startEndDetection(Mat img) {
     Ptr<cv::SimpleBlobDetector> detector = cv::SimpleBlobDetector::create(params);
     detector->detect(mask, point);
 
+//    /// si on a les 2 composantes connexes
+//    if(point.size() == 2){
+//        for(int i=0 ; i<2 ; i++ ){
+//            coordPoint.push_back(point[i].pt);
+//        }
+//    }
     /// si plus de 2 composantes connexes trouvées on prends les 2 plus petites
     if(point.size() > 1 && point.size() == 6){
         for(int i=0 ; i<2 ; i++ ){
@@ -291,7 +257,7 @@ vector<Point2i> EdgeDetection::startEndDetection(Mat img) {
             point[imin].size = 2000;
         }
     }
-
+    cout << coordPoint.size() << endl ;
     return coordPoint;
 
 }
@@ -302,24 +268,26 @@ bool sortByY(Point p1, Point p2){
 }
 
 vector<Point2i> EdgeDetection::sortPoints(vector<Point2i> coord, Mat imgHSV){
-    /// tri du y le plus grand au plus petit
-    sort(coord.begin(), coord.end(), sortByY);
-    /// comparaison des deux du bas et des deux du haut
-    if(coord[0].x > coord[1].x) swap(coord[0],coord[1]);
-    if(coord[2].x > coord[3].x) swap(coord[2],coord[3]);
-    ///réarangement qui marche =)
-    swap(coord[1],coord[2]);
-    swap(coord[2],coord[3]);
+    int temp[4][2];
 
-
-    int compt =0;// sécurité
-    ///tant que le point unique n'est pas en premier on fait une rotation
-    while((int)imgHSV.at<Vec3b>(coord[0].y,coord[0].x)[0] <= 125 && (compt < 4)){
-        std::rotate(coord.begin(),coord.begin()+1,coord.end());
-        compt++;
+   int distMin, dist, iMin;
+    for(int j=0 ; j< 4 ; j++) {
+        distMin  =10000 ;
+        for (int i = 0; i < 4; i++) {
+            dist = abs(coord[j].x - points[i][0]) + abs(coord[j].y - points[i][1]) ;
+            if(dist < distMin){
+                iMin = i;
+                distMin = dist;
+            }
+        }
+        temp[iMin][0] = coord[j].x ;
+        temp[iMin][1] = coord[j].y ;
     }
 
-
+    coord.clear();
+    for(int i=0 ; i<4 ; i++){
+        coord.push_back(Point(temp[i][0],temp[i][1]));
+    }
     return coord;
 }
 
