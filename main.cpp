@@ -187,6 +187,7 @@ void setupMaze(){
 
     /// Tant que les 4 coins n'ont pas été détéctées
     do {
+
         currentFrame = cameraStream->getCurrentFrame();
         coordStartEnd = edgeDetection.startEndDetection(currentFrame);
         coordCorner = edgeDetection.getCorner(currentFrame);
@@ -194,7 +195,7 @@ void setupMaze(){
         /// Detection des murs
         lines = edgeDetection.linesDetection(currentFrame, coordCorner);
 
-    }while(coordCorner.size() != 4 && coordStartEnd.size() != 2);
+    }while(coordStartEnd.size() != 2);
 
     Transformation *transformation = new Transformation(coordCorner, Size(currentFrame.cols, currentFrame.rows), 1, 10);
 
@@ -230,5 +231,6 @@ void setupMaze(){
     window->setWalls(walls);
 
     angleModel = new AngleModel(transformation);
+
 
 }
