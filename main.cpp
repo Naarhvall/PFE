@@ -89,7 +89,7 @@ void loop(int endGame){
 
     vector<Point2i> coordCorner;
     Mat currentFrame = cameraStream->getCurrentFrame();
-    EdgeDetection edgeDetection = EdgeDetection(currentFrame);
+    EdgeDetection edgeDetection = EdgeDetection(currentFrame, false);
     coordCorner = edgeDetection.getCorner(currentFrame);
 
     /// Si les 4 coins ont été détéctées
@@ -179,7 +179,7 @@ void setupMaze(){
 
 
     Mat currentFrame = cameraStream->getCurrentFrame();
-    EdgeDetection edgeDetection = EdgeDetection(currentFrame);
+    EdgeDetection edgeDetection = EdgeDetection(currentFrame, true);
 
     vector<Point2i> coordCorner;
     vector<Point2i> coordStartEnd;
