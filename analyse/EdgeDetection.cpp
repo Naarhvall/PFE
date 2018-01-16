@@ -184,8 +184,8 @@ vector<Point2i> EdgeDetection::getCorner(Mat img) {
         coordCorner.push_back(Point(tab[i][1],tab[i][2]));
     }
 
-    /// On met à jour le point de calibration
-    coordCorner = sortPoints(coordCorner, hsv);
+    /// On ordonne nos points
+    coordCorner = pointsVerification(coordCorner);
 
     for(int i = 0; i < 4; i++){
         points[i][0] = coordCorner[i].x;
@@ -251,31 +251,81 @@ bool sortByY(Point p1, Point p2){
     return p1.y>p2.y ;
 }
 
-vector<Point2i> EdgeDetection::sortPoints(vector<Point2i> coord, Mat imgHSV){
-    int temp[4][2];
+//vector<Point2i> EdgeDetection::sortPoints(vector<Point2i> coord){
+//    int temp[4][2];
+//
+//    int distMin, dist, jMin;
+//    bool tab[4]={true,true,true,true};
+//
+//    for(int i=0 ; i< 4 ; i++) {
+//        distMin  = 10000;
+//        for (int j = 0; j < 4; j++) {
+//            dist = static_cast<int>(sqrt((float)(pow(coord[j].x - points[i][0], 2)) + (float)(pow(coord[j].y - points[i][1], 2))));
+//            if(dist < distMin && tab[j]){
+//                jMin = j;
+//                distMin = dist;
+//            }
+//        }
+//        temp[i][0] = coord[jMin].x ;
+//        temp[i][1] = coord[jMin].y ;
+//        tab[jMin] = false;
+//    }
+//
+//    coord.clear();
+//    for(int i=0 ; i<4 ; i++){
+//        coord.push_back(Point(temp[i][0],temp[i][1]));
+//    }
+//    return coord;
+//}
 
-    int distMin, dist, jMin;
-    bool tab[4]={true,true,true,true};
+vector<Point2i> EdgeDetection::pointsVerification(vector<Point2i> coord){
+    vector<Point2i> temp;
+    int valTemp1 = 10000, valTemp2, indice;
 
-    for(int i=0 ; i< 4 ; i++) {
-        distMin  = 10000;
-        for (int j = 0; j < 4; j++) {
-            dist = static_cast<int>(sqrt((float)(pow(coord[j].x - points[i][0], 2)) + (float)(pow(coord[j].y - points[i][1], 2))));
-            if(dist < distMin && tab[j]){
-                jMin = j;
-                distMin = dist;
-            }
+    /// On cherche min x+y
+    for(int i = 0; i < 4; i++){
+        valTemp2 = coord[i].x+coord[i].y;
+        if(valTemp2 < valTemp1) {
+            valTemp1 = valTemp2;
+            indice = i;
         }
-        temp[i][0] = coord[jMin].x ;
-        temp[i][1] = coord[jMin].y ;
-        tab[jMin] = false;
     }
+    temp.push_back(coord[indice]);
 
-    coord.clear();
-    for(int i=0 ; i<4 ; i++){
-        coord.push_back(Point(temp[i][0],temp[i][1]));
+    /// On cherche max x-y
+    valTemp1 = 0;
+    for(int i = 0; i < 4; i++){
+        valTemp2 = coord[i].x-coord[i].y;
+        if(valTemp2 > valTemp1) {
+            valTemp1 = valTemp2;
+            indice = i;
+        }
     }
-    return coord;
+    temp.push_back(coord[indice]);
+
+    ///On cherche max x+y
+    valTemp1 = 0;
+    for(int i = 0; i < 4; i++){
+        valTemp2 = coord[i].x+coord[i].y;
+        if(valTemp2 > valTemp1) {
+            valTemp1 = valTemp2;
+            indice = i;
+        }
+    }
+    temp.push_back(coord[indice]);
+
+    ///On cherche max y-x
+    valTemp1 = 0;
+    for(int i = 0; i < 4; i++){
+        valTemp2 = coord[i].y-coord[i].x;
+        if(valTemp2 > valTemp1) {
+            valTemp1 = valTemp2;
+            indice = i;
+        }
+    }
+    temp.push_back(coord[indice]);
+
+    return temp;
 }
 
 

@@ -11,14 +11,19 @@ class EdgeDetection {
 
 private:
 
-    /** Trie le vector de 4 points comme suit:
-     *          le point particulier (couleur différente) en premier et les suivants dans le sens horaire
+    /** Trie les 4 points selon les positions des points de la frame d'avant
      *
      * @param coord le vector de coordonnées des quatres coins
-     * @param imgHSV la frame courante en hsv
      * @return retourne le vector de 4 points trié
      */
-    std::vector<cv::Point2i> sortPoints(std::vector<cv::Point2i> coord, cv::Mat imgHSV);
+    std::vector<cv::Point2i> sortPoints(std::vector<cv::Point2i> coord);
+
+    /** Verifie que les points sont dans le bonne ordre et le remets le cas contraire
+    *
+    * @param coord le vector de coordonnées des quatres coins
+    * @return retourne le vector de 4 points trié
+    */
+    std::vector<cv::Point2i> pointsVerification (std::vector<cv::Point2i> coord);
 
     /** enlève les doublons de lignes
      *
