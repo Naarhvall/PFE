@@ -23,7 +23,7 @@ void setupMaze();
 int main(int argc, char** argv){
 
     bool anaglyph;
-    ball = new Ball(0.5, 0.5, 0.03, 50);
+    ball = new Ball(0.5, 0.5, 0.02, 50);
     cameraStream = new CameraStream();
     namedWindow("aMAZEd Calibration");
 

@@ -50,12 +50,14 @@ Mat EdgeDetection::colorCalibration(Mat img){
 
     ///On récupère le niveau de gris max du voisinage du pixel du mileu
     for(int i = -10; i < 10; i++){
-      for(int j = -10; j < 10; j++){
-          nivGrey = (int)imgGrey.at<uchar>(StartingPointY+i, StartingPointX+j);
-          if(nivGrey > nivMax){
-              nivMax = nivGrey;
-              tempx = StartingPointX+j;
-              tempy = StartingPointY+i;
+      for(int j = -10; j < 10; j++) {
+          if (0 <= StartingPointY + i && StartingPointY + i < img.rows && 0 <= StartingPointX + j && StartingPointX + j < img.cols){
+              nivGrey = (int) imgGrey.at<uchar>(StartingPointY + i, StartingPointX + j);
+              if (nivGrey > nivMax) {
+                  nivMax = nivGrey;
+                  tempx = StartingPointX + j;
+                  tempy = StartingPointY + i;
+              }
           }
       }
     }
@@ -64,7 +66,7 @@ Mat EdgeDetection::colorCalibration(Mat img){
     StartingPointY = tempy;
 
     ///On créé le mask en fonction du niveau de gris précédent
-    inRange(imgGrey, nivMax-40, nivMax+60, mask);
+    inRange(imgGrey, nivMax-30, nivMax+60, mask);
     Mat ouais = mask.clone();
     circle(ouais, Point2i(StartingPointX,StartingPointY), 5, Scalar(150,150,150));
     ///Affichage du mask
@@ -229,19 +231,6 @@ vector<Point2i> EdgeDetection::startEndDetection(Mat img) {
         }
     }
 
-//    /// si plus de 2 composantes connexes trouvées on prends les 2 plus petites
-//    if(point.size() > 1 && point.size() == 6){
-//        for(int i=0 ; i<2 ; i++ ){
-//            int imin = 0;
-//            for(int j = 1 ; j< point.size() ; j++) {
-//                if (point[j].size < point[imin].size) {
-//                    imin = j;
-//                }
-//            }
-//            coordPoint.push_back(point[imin].pt);
-//            point[imin].size = 2000;
-//        }
-//    }
     return coordPoint;
 
 }
@@ -251,32 +240,6 @@ bool sortByY(Point p1, Point p2){
     return p1.y>p2.y ;
 }
 
-//vector<Point2i> EdgeDetection::sortPoints(vector<Point2i> coord){
-//    int temp[4][2];
-//
-//    int distMin, dist, jMin;
-//    bool tab[4]={true,true,true,true};
-//
-//    for(int i=0 ; i< 4 ; i++) {
-//        distMin  = 10000;
-//        for (int j = 0; j < 4; j++) {
-//            dist = static_cast<int>(sqrt((float)(pow(coord[j].x - points[i][0], 2)) + (float)(pow(coord[j].y - points[i][1], 2))));
-//            if(dist < distMin && tab[j]){
-//                jMin = j;
-//                distMin = dist;
-//            }
-//        }
-//        temp[i][0] = coord[jMin].x ;
-//        temp[i][1] = coord[jMin].y ;
-//        tab[jMin] = false;
-//    }
-//
-//    coord.clear();
-//    for(int i=0 ; i<4 ; i++){
-//        coord.push_back(Point(temp[i][0],temp[i][1]));
-//    }
-//    return coord;
-//}
 
 vector<Point2i> EdgeDetection::pointsVerification(vector<Point2i> coord){
     vector<Point2i> temp;
@@ -336,11 +299,6 @@ vector<Point2i> EdgeDetection::pointsVerification(vector<Point2i> coord){
 ///Fonction permettant la détection des lignes
 vector<vector<Point2i>> EdgeDetection::linesDetection(Mat img, vector<Point2i> coordCorner){
     /// détection des contours avec Canny
-    Mat imgCanny;
-
-    cvtColor(img, imgCanny, COLOR_RGB2GRAY);
-    blur( imgCanny, imgCanny, Size(3,3) );
-    Canny(imgCanny, imgCanny, 50, 200, 3);
 
     /// detection des lignes dans le vect lines
     /// vecteur dans lequel sont stockées les lignes
@@ -354,7 +312,19 @@ vector<vector<Point2i>> EdgeDetection::linesDetection(Mat img, vector<Point2i> c
     /// longueur min d'une ligne détectée
     /// max ecart entre pixels de la ligne)
 
-    HoughLinesP(imgCanny, lines, 1, CV_PI/180, 30, 15, 10);
+    Mat newMask;
+    Mat imgGrey;
+    cvtColor(img, imgGrey, COLOR_RGB2GRAY);
+    auto midGrey = (int)imgGrey.at<uchar>(StartingPointY, StartingPointX);
+    inRange(imgGrey, midGrey-40, midGrey+40, newMask);
+    Mat maskTemp = newMask.clone();
+    cv::floodFill(maskTemp, cv::Point(StartingPointX, StartingPointY), CV_RGB(0, 0, 0));
+    maskTemp = ~maskTemp;
+    newMask = maskTemp & newMask;
+    maskTemp = newMask.clone();
+    cv::floodFill(maskTemp, cv::Point(0,0), CV_RGB(255, 255, 255));
+    maskTemp = ~maskTemp;
+    HoughLinesP(maskTemp, lines, 1, CV_PI/180, 25, 25, 5);
 
     /// tableau de couples de points
     vector<vector<Point2i>> vectLines;
@@ -392,21 +362,21 @@ vector<vector<Point2i>> EdgeDetection::linesDetection(Mat img, vector<Point2i> c
         if((int)mask.at<uchar>(vectPoints[0].y, vectPoints[0].x) == 255 && (int)mask.at<uchar>(vectPoints[1].y, vectPoints[1].x) == 255) {
             /// ajout du couple au tableau
             vectLines.push_back(vectPoints) ;
-            //line( imgCanny, vectPoints[0], vectPoints[1], Scalar(0,0,0), 1, CV_AA);
+            //line( maskTemp, vectPoints[0], vectPoints[1], Scalar(100,100,100), 1, CV_AA);
         }
     }
 
-//    namedWindow("canny",WINDOW_AUTOSIZE);
-//    imshow("canny", imgCanny);
+    namedWindow("canny",WINDOW_AUTOSIZE);
+    imshow("canny", maskTemp);
 
-    return(filterDouble(vectLines,10));
-    //return(vectLines);
+    return(filterDouble(vectLines,20));
 }
 
 
-///Fonction permettant de trier les murs
+
 vector<vector<Point2i>> EdgeDetection::filterDouble(vector<vector<Point2i>> vectLines, int thresh){
     vector<vector<Point2i>> linesFilter = vectLines ;
+
     int suppressed = 0;
     int incr = 0 ;
     for(vector<Point2i> line : vectLines) {
@@ -428,9 +398,141 @@ vector<vector<Point2i>> EdgeDetection::filterDouble(vector<vector<Point2i>> vect
         }
         incr++ ;
     }
+    cout << linesFilter.size() << endl ;
 
+//    bool doNext = true ;
+//    vector<vector<Point2i>> linesTemp ;
+//    vector<Point2i> temp;
+//    vector<bool> isUsed = vector<bool>(linesFilter.size(),false);
+//    float vect1,vect2;
+//    float threshVect = 0.07;
+//    bool noMatch;
+//    cout << linesFilter.size() << endl ;
+//    while(doNext ==1){
+//        doNext = false ;
+//        //parcours de tout les murs
+//        for(int currentWall = 0 ; currentWall < linesFilter.size() ; currentWall++){
+//            //si mur non deja utilisé
+//            noMatch = true ;
+//            if(!isUsed[currentWall]) {
+//                //calcul de son vect directeur
+//                if (linesFilter[currentWall][0].y != linesFilter[currentWall][1].y)
+//                    vect1 = (linesFilter[currentWall][0].x - linesFilter[currentWall][1].x) /
+//                            (linesFilter[currentWall][0].y - linesFilter[currentWall][1].y);
+//                else vect1 = -1;
+//                //parcours des autres murs
+//                for (int otherWall = 0; otherWall < linesFilter.size(); otherWall++) {
+//                    //si different et pas deja utilise
+//                    if (otherWall != currentWall && !isUsed[otherWall]) {
+//                        // calcul du 2eme vect dir
+//                        if (linesFilter[otherWall][0].y != linesFilter[otherWall][1].y)
+//                            vect2 = (linesFilter[otherWall][0].x - linesFilter[otherWall][1].x) /
+//                                    (linesFilter[otherWall][0].y - linesFilter[otherWall][1].y);
+//                        else vect2 = -1;
+//                        // si mm vects dirs
+//                        if (vect2 < vect1 + threshVect && vect2 > vect1 - threshVect) {
+//                            //si ~2 mm murs
+//                            if(linesFilter[otherWall][0].x < linesFilter[currentWall][0].x+thresh &&
+//                               linesFilter[otherWall][0].x > linesFilter[currentWall][0].x-thresh &&
+//                               linesFilter[otherWall][0].y < linesFilter[currentWall][0].y+thresh &&
+//                               linesFilter[otherWall][0].y > linesFilter[currentWall][0].y-thresh &&
+//                               linesFilter[otherWall][1].x < linesFilter[currentWall][1].x+thresh &&
+//                               linesFilter[otherWall][1].x > linesFilter[currentWall][1].x-thresh &&
+//                               linesFilter[otherWall][1].y < linesFilter[currentWall][1].y+thresh &&
+//                               linesFilter[otherWall][1].y > linesFilter[currentWall][1].y-thresh ||
+//
+//                               linesFilter[otherWall][0].x < linesFilter[currentWall][1].x+thresh &&
+//                               linesFilter[otherWall][0].x > linesFilter[currentWall][1].x-thresh &&
+//                               linesFilter[otherWall][0].y < linesFilter[currentWall][1].y+thresh &&
+//                               linesFilter[otherWall][0].y > linesFilter[currentWall][1].y-thresh &&
+//                               linesFilter[otherWall][1].x < linesFilter[currentWall][0].x+thresh &&
+//                               linesFilter[otherWall][1].x > linesFilter[currentWall][0].x-thresh &&
+//                               linesFilter[otherWall][1].y < linesFilter[currentWall][0].y+thresh &&
+//                               linesFilter[otherWall][1].y > linesFilter[currentWall][0].y-thresh){
+//                                temp.push_back(Point2i(linesFilter[currentWall][0].x,linesFilter[currentWall][0].y));
+//                                temp.push_back(Point2i(linesFilter[currentWall][1].x,linesFilter[currentWall][1].y));
+//                                linesTemp.push_back(temp);
+//                                temp.clear();
+//                                doNext = true;
+//                                isUsed[currentWall] = true ;
+//                                isUsed[otherWall] = true ;
+//                                noMatch = false;
+//                            }
+//                            else if(linesFilter[otherWall][0].x < linesFilter[currentWall][0].x+thresh &&
+//                                    linesFilter[otherWall][0].x > linesFilter[currentWall][0].x-thresh &&
+//                                    linesFilter[otherWall][0].y < linesFilter[currentWall][0].y+thresh &&
+//                                    linesFilter[otherWall][0].y > linesFilter[currentWall][0].y-thresh ){
+//                                temp.push_back(Point2i(linesFilter[currentWall][1].x,linesFilter[currentWall][1].y));
+//                                temp.push_back(Point2i(linesFilter[otherWall][1].x,linesFilter[otherWall][1].y));
+//                                linesTemp.push_back(temp);
+//                                temp.clear();
+//                                doNext = true;
+//                                isUsed[currentWall] = true ;
+//                                isUsed[otherWall] = true ;
+//                                noMatch = false;
+//                            }
+//                            else if(linesFilter[otherWall][1].x < linesFilter[currentWall][1].x+thresh &&
+//                                    linesFilter[otherWall][1].x > linesFilter[currentWall][1].x-thresh &&
+//                                    linesFilter[otherWall][1].y < linesFilter[currentWall][1].y+thresh &&
+//                                    linesFilter[otherWall][1].y > linesFilter[currentWall][1].y-thresh){
+//                                temp.push_back(Point2i(linesFilter[currentWall][0].x,linesFilter[currentWall][0].y));
+//                                temp.push_back(Point2i(linesFilter[otherWall][0].x,linesFilter[otherWall][0].y));
+//                                linesTemp.push_back(temp);
+//                                temp.clear();
+//                                doNext = true;
+//                                isUsed[currentWall] = true ;
+//                                isUsed[otherWall] = true ;
+//                                noMatch = false;
+//                            }
+//                            else if(linesFilter[otherWall][0].x < linesFilter[currentWall][1].x+thresh &&
+//                                    linesFilter[otherWall][0].x > linesFilter[currentWall][1].x-thresh &&
+//                                    linesFilter[otherWall][0].y < linesFilter[currentWall][1].y+thresh &&
+//                                    linesFilter[otherWall][0].y > linesFilter[currentWall][1].y-thresh){
+//                                temp.push_back(Point2i(linesFilter[currentWall][0].x,linesFilter[currentWall][0].y));
+//                                temp.push_back(Point2i(linesFilter[otherWall][1].x,linesFilter[otherWall][1].y));
+//                                linesTemp.push_back(temp);
+//                                temp.clear();
+//                                doNext = true;
+//                                isUsed[currentWall] = true ;
+//                                isUsed[otherWall] = true ;
+//                                noMatch = false;
+//                            }
+//                            else if(linesFilter[otherWall][1].x < linesFilter[currentWall][0].x+thresh &&
+//                                    linesFilter[otherWall][1].x > linesFilter[currentWall][0].x-thresh &&
+//                                    linesFilter[otherWall][1].y < linesFilter[currentWall][0].y+thresh &&
+//                                    linesFilter[otherWall][1].y > linesFilter[currentWall][0].y-thresh){
+//                                temp.push_back(Point2i(linesFilter[currentWall][1].x,linesFilter[currentWall][1].y));
+//                                temp.push_back(Point2i(linesFilter[otherWall][0].x,linesFilter[otherWall][0].y));
+//                                linesTemp.push_back(temp);
+//                                temp.clear();
+//                                doNext = true;
+//                                isUsed[currentWall] = true ;
+//                                isUsed[otherWall] = true ;
+//                                noMatch = false;
+//                            }
+//                        }
+//                    }
+//                }
+//                if (noMatch){
+//                    temp.push_back(Point2i(linesFilter[currentWall][1].x,linesFilter[currentWall][1].y));
+//                    temp.push_back(Point2i(linesFilter[currentWall][0].x,linesFilter[currentWall][0].y));
+//                    linesTemp.push_back(temp);
+//                    temp.clear();
+//                }
+//            }
+//        }
+//        //linesTemp : nouveaux murs
+//        //linesFilter : anciens murs
+//        //isUsed : anciens murs utilisés
+//        linesFilter = linesTemp;
+//        linesTemp.clear();
+//        isUsed = vector<bool>(linesFilter.size(),false);
+//        cout << linesFilter.size() << endl ;
+//    }
     return linesFilter ;
 }
+
+
 
 
 ///Fonction permettant de savoir s'il y a une inversion dans le plan

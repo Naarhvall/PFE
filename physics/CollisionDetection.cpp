@@ -2,11 +2,13 @@
 #include <GL/glut.h>
 #include <iostream>
 #include "CollisionDetection.h"
+#include "../modelisation/OpenGL.h"
 
 using namespace std;
 
 bool CollisionDetection::intersect(Ball *ball, Wall wall) {
-    /// Calcul du vecteur leftNormal par rapport au mur
+    /// Calcul du vecteur lef
+    /// tNormal par rapport au mur
     /// --> v=[ax;ay] -> v_leftNorm = [-ay;ax]
     double x1 = wall.getStart().x;
     double y1 = wall.getStart().y;
@@ -80,10 +82,10 @@ bool CollisionDetection::findCollisions(Ball *ball, vector<Wall> walls, vector<W
 }
 
 bool CollisionDetection:: hasArrived(Ball *ball, cv::Point2d *point){
-    return ball->getX() >= point->x - ball->getR()
-           && ball->getX() <= point->x + ball->getR()
-           && ball->getY() >= point->y - ball->getR()
-           && ball->getY() <= point->y + ball->getR();
+    return ball->getX() >= point->x - ball->getR() - OpenGL::FLAG_PIPE_HITBOX
+           && ball->getX() <= point->x + ball->getR() + OpenGL::FLAG_PIPE_HITBOX
+           && ball->getY() >= point->y - ball->getR() - OpenGL::FLAG_PIPE_HITBOX
+           && ball->getY() <= point->y + ball->getR() + OpenGL::FLAG_PIPE_HITBOX;
 }
 
 

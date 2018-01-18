@@ -62,6 +62,7 @@ private:
 
 public:
 
+    static constexpr double FLAG_PIPE_HITBOX = 0.05;
     cv::Point2d *getEndPoint();
     void setEndPoint(cv::Point2d *point);
     void setWalls(const std::vector<Wall> &walls);
