@@ -45,6 +45,8 @@ public:
      */
     cv::Mat colorCalibration(cv::Mat img);
 
+    cv::Mat buildBasicMask(cv::Mat img);
+
     /** détecte les couleurs d'une image
      * @params
      *      img : l'image où il faut détecter les couleurs

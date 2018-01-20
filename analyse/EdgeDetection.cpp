@@ -32,46 +32,7 @@ EdgeDetection::EdgeDetection(Mat img, bool ini){
 ///Fonction permettant la calibration de la couleur
 Mat EdgeDetection::colorCalibration(Mat img){
 
-    ///Initialisation des varaibles
-    std::vector<Point2i> keypoints;
-    Mat imgGrey;
-    cvtColor(img, imgGrey, COLOR_RGB2GRAY);
-
-    ///On initialise le point de calibration au milieu de l'écran
-    if(StartingPointX == 0 && StartingPointY == 0){
-        StartingPointX = imgGrey.cols / 2 ;
-        StartingPointY = imgGrey.rows / 2 ;
-    }
-
-    ///Création d'un mask permetant de sélectionner uniquement les 4 coins
-    Mat mask;
-    int nivMax = 0;
-    int nivGrey, tempx, tempy;
-
-    ///On récupère le niveau de gris max du voisinage du pixel du mileu
-    for(int i = -10; i < 10; i++){
-      for(int j = -10; j < 10; j++) {
-          if (0 <= StartingPointY + i && StartingPointY + i < img.rows && 0 <= StartingPointX + j && StartingPointX + j < img.cols){
-              nivGrey = (int) imgGrey.at<uchar>(StartingPointY + i, StartingPointX + j);
-              if (nivGrey > nivMax) {
-                  nivMax = nivGrey;
-                  tempx = StartingPointX + j;
-                  tempy = StartingPointY + i;
-              }
-          }
-      }
-    }
-
-    StartingPointX = tempx;
-    StartingPointY = tempy;
-
-    ///On créé le mask en fonction du niveau de gris précédent
-    inRange(imgGrey, nivMax-30, nivMax+60, mask);
-    Mat ouais = mask.clone();
-    circle(ouais, Point2i(StartingPointX,StartingPointY), 5, Scalar(150,150,150));
-    ///Affichage du mask
-    namedWindow("mask3",WINDOW_AUTOSIZE);
-    imshow("mask3", ouais);
+    Mat mask = buildBasicMask(img);
 
     ///On manipule le mask afin de ne récupérer que les 4 coins
     Mat maskTemp = mask.clone();
@@ -95,25 +56,69 @@ Mat EdgeDetection::colorCalibration(Mat img){
 
 }
 
+Mat EdgeDetection::buildBasicMask(Mat img){
+    Mat imgGrey;
+    cvtColor(img, imgGrey, COLOR_RGB2GRAY);
+
+    ///On initialise le point de calibration au milieu de l'écran
+    if(StartingPointX == 0 && StartingPointY == 0){
+        StartingPointX = imgGrey.cols / 2 ;
+        StartingPointY = imgGrey.rows / 2 ;
+    }
+
+
+    int nivMax = 0;
+    int nivGrey, tempx, tempy;
+
+    ///On récupère le niveau de gris max du voisinage du pixel du milieu
+    ///on calcule l'histogramme des niveaux de gris
+    vector<int> histo = vector<int>(256);
+    for(int i = -10; i < 10; i++){
+        for(int j = -10; j < 10; j++) {
+            if (0 <= StartingPointY + i && StartingPointY + i < img.rows && 0 <= StartingPointX + j && StartingPointX + j < img.cols){
+                histo[(int) imgGrey.at<uchar>(StartingPointY + i, StartingPointX + j)] ++;
+                nivGrey = (int) imgGrey.at<uchar>(StartingPointY + i, StartingPointX + j);
+                if (nivGrey > nivMax) {
+                    nivMax = nivGrey;
+                    tempx = StartingPointX + j;
+                    tempy = StartingPointY + i;
+                }
+            }
+        }
+    }
+    /// on recupere le niveau de gris le plus present : correspond a la couleur blanche de la feuille
+    int max = 0;
+    int rgmax =0;
+    for(int i=0 ; i< 256 ; i++){
+        if(histo[i]>max){
+            rgmax = i;
+            max = histo[i];
+        }
+    }
+    nivMax =rgmax;
+
+    StartingPointX = tempx;
+    StartingPointY = tempy;
+
+    ///On créé le mask en fonction du niveau de gris précédent
+    Mat mask;
+    inRange(imgGrey, nivMax-60, nivMax+60, mask);
+
+    return mask;
+}
+
 /// Fonction permettant de récupérer les 4 coins du plan
 vector<Point2i> EdgeDetection::getCorner(Mat img) {
 
     ///Initialisation des variables
-    Mat mask = colorCalibration(img);
     std::vector<KeyPoint> keypoints;
     vector<Point2i> coordCorner;
 
-    /// cherche les coins sur le masque nouvelle version : pas de blobs
-    int rows = mask.rows;
-    int cols = mask.cols;
-//    int minX = cols , minXy, minY = rows, minYx, maxX =0 , maxXy, maxY=0, maxYx;
-
     /// recréation d'un mask quivabien
-    Mat newMask;
-    Mat imgGrey;
-    cvtColor(img, imgGrey, COLOR_RGB2GRAY);
-    auto midGrey = (int)imgGrey.at<uchar>(StartingPointY, StartingPointX);
-    inRange(imgGrey, midGrey-40, midGrey+40, newMask);
+    Mat newMask = buildBasicMask(img);
+    int rows = newMask.rows;
+    int cols = newMask.cols;
+
     Mat maskTemp = newMask.clone();
     cv::floodFill(maskTemp, cv::Point(StartingPointX, StartingPointY), CV_RGB(0, 0, 0));
     maskTemp = ~maskTemp;
@@ -123,7 +128,7 @@ vector<Point2i> EdgeDetection::getCorner(Mat img) {
     maskTemp = ~maskTemp;
     newMask= newMask | maskTemp;
     Mat kernel1;
-    kernel1 = getStructuringElement(2, Size(7,7), Point(2,2));
+    kernel1 = getStructuringElement(1, Size(7,7), Point(2,2));
     dilate(newMask, newMask, kernel1);
     erode(newMask, newMask, kernel1);
 
@@ -195,8 +200,8 @@ vector<Point2i> EdgeDetection::getCorner(Mat img) {
 
     StartingPointX = (coordCorner[0].x + coordCorner[1].x + coordCorner[2].x + coordCorner[3].x)/4 ;
     StartingPointY = (coordCorner[0].y + coordCorner[1].y + coordCorner[2].y + coordCorner[3].y)/4 ;
-    namedWindow("mask",WINDOW_AUTOSIZE);
-    imshow("mask", newMask);
+//    namedWindow("mask",WINDOW_AUTOSIZE);
+//    imshow("mask", newMask);
     return coordCorner;
 
 }
@@ -302,11 +307,11 @@ vector<vector<Point2i>> EdgeDetection::wallsDetection(Mat img, vector<Point2i> c
     /// longueur min d'une ligne détectée
     /// max ecart entre pixels de la ligne)
 
-    Mat newMask;
-    Mat imgGrey;
-    cvtColor(img, imgGrey, COLOR_RGB2GRAY);
-    auto midGrey = (int)imgGrey.at<uchar>(StartingPointY, StartingPointX);
-    inRange(imgGrey, midGrey-40, midGrey+40, newMask);
+    Mat newMask = buildBasicMask(img);
+//    Mat imgGrey;
+//    cvtColor(img, imgGrey, COLOR_RGB2GRAY);
+//    auto midGrey = (int)imgGrey.at<uchar>(StartingPointY, StartingPointX);
+//    inRange(imgGrey, midGrey-40, midGrey+40, newMask);
     Mat maskTemp = newMask.clone();
     cv::floodFill(maskTemp, cv::Point(StartingPointX, StartingPointY), CV_RGB(0, 0, 0));
     maskTemp = ~maskTemp;
