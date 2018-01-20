@@ -102,8 +102,6 @@ vector<Point2i> EdgeDetection::getCorner(Mat img) {
     Mat mask = colorCalibration(img);
     std::vector<KeyPoint> keypoints;
     vector<Point2i> coordCorner;
-    ///Déclaration et calcul de l'image hsv
-    Mat hsv;
 
     /// cherche les coins sur le masque nouvelle version : pas de blobs
     int rows = mask.rows;
@@ -230,9 +228,7 @@ vector<Point2i> EdgeDetection::startEndDetection(Mat img) {
             coordPoint.push_back(point[i].pt);
         }
     }
-
     return coordPoint;
-
 }
 
 /// fonction utilisée pour trier les points
@@ -291,19 +287,13 @@ vector<Point2i> EdgeDetection::pointsVerification(vector<Point2i> coord){
     return temp;
 }
 
-
-
-
-
-
 ///Fonction permettant la détection des lignes
-vector<vector<Point2i>> EdgeDetection::linesDetection(Mat img, vector<Point2i> coordCorner){
+vector<vector<Point2i>> EdgeDetection::wallsDetection(Mat img, vector<Point2i> coordCorner, vector<Point2i> coordStartEnd){
     /// détection des contours avec Canny
 
     /// detection des lignes dans le vect lines
     /// vecteur dans lequel sont stockées les lignes
     ///     lignes stockées sous la forme (x1,y1,x2,y2)
-    vector<Vec4i> lines;
     /// houghLinesP(imgsource,
     /// vectdest,
     /// distance resolution en pixels
@@ -324,55 +314,80 @@ vector<vector<Point2i>> EdgeDetection::linesDetection(Mat img, vector<Point2i> c
     maskTemp = newMask.clone();
     cv::floodFill(maskTemp, cv::Point(0,0), CV_RGB(255, 255, 255));
     maskTemp = ~maskTemp;
-    HoughLinesP(maskTemp, lines, 1, CV_PI/180, 25, 25, 5);
 
-    /// tableau de couples de points
-    vector<vector<Point2i>> vectLines;
-
-    ///Initialisation du mask
-    Mat mask = Mat::zeros(img.size(), CV_8UC1);
-
-    ///Si on a 4 points alors
-    ///On déssine un polygone avec ces 4 points dans le mask
-    if(coordCorner.size() == 4) {
-        ///Conversion des données pour utiliser la fonction fillPoly
-        Point coord[1][4];
-        coord[0][0] = coordCorner[0];
-        coord[0][1] = coordCorner[1];
-        coord[0][2] = coordCorner[2];
-        coord[0][3] = coordCorner[3];
-        ///Nombre de points
-        int npt[] = {4};
-        ///Pointeur de points
-        const Point *ppt[1] = {coord[0]};
-
-        fillPoly(mask, ppt, npt, 1, Scalar(255, 255, 255), 8);
+    if(coordStartEnd.size() == 2){
+        floodFill(maskTemp, coordStartEnd[0],Scalar(0,0,0));
+        floodFill(maskTemp,coordStartEnd[1],Scalar(0,0,0));
     }
 
-    for(Vec4i l : lines){
+//    namedWindow("maskMurs",WINDOW_AUTOSIZE);
+//    imshow("maskMurs", maskTemp);
 
-        /// couple de points
-        vector<Point2i> vectPoints ;
-        vectPoints.emplace_back(l[0], l[1]);
-        vectPoints.emplace_back(l[2], l[3]);
+    /// tableau de couples de points
+    vector<Vec4i> vectLinesTemp;
+    vectLinesTemp = linesDetection(maskTemp, 25,25,5);
 
+    vector<vector<Point2i>> vectLines;
+    vector<Point2i> lineTemp ;
+//    lineTemp.push_back(coordCorner[0]);
+//    lineTemp.push_back(coordCorner[1]);
+//    vectLines.push_back(lineTemp);
+//    lineTemp.clear();
+//    lineTemp.push_back(coordCorner[1]);
+//    lineTemp.push_back(coordCorner[2]);
+//    vectLines.push_back(lineTemp);
+//    lineTemp.clear();
+//    lineTemp.push_back(coordCorner[2]);
+//    lineTemp.push_back(coordCorner[3]);
+//    vectLines.push_back(lineTemp);
+//    lineTemp.clear();
+//    lineTemp.push_back(coordCorner[3]);
+//    lineTemp.push_back(coordCorner[0]);
+//    vectLines.push_back(lineTemp);
+//    lineTemp.clear();
 
+    for(Vec4i line: vectLinesTemp){
+        cv::line(maskTemp, Point(line[0],line[1]),Point(line[2],line[3]),Scalar(0,0,0),3, CV_AA);
+        lineTemp.push_back(Point(line[0],line[1]));
+        lineTemp.push_back(Point(line[2],line[3]));
+        vectLines.push_back(lineTemp);
+        lineTemp.clear();
+    }
+    vectLinesTemp.clear();
 
-        ///tracé de la ligne
-        if((int)mask.at<uchar>(vectPoints[0].y, vectPoints[0].x) == 255 && (int)mask.at<uchar>(vectPoints[1].y, vectPoints[1].x) == 255) {
-            /// ajout du couple au tableau
-            vectLines.push_back(vectPoints) ;
-            //line( maskTemp, vectPoints[0], vectPoints[1], Scalar(100,100,100), 1, CV_AA);
+    int nbWhite = 0;
+    for(int i = 0 ; i<maskTemp.cols ; i++){
+        for(int j = 0 ; j<maskTemp.rows ; j++){
+            if((int)maskTemp.at<uchar>(j,i) == 255)
+                nbWhite ++ ;
         }
     }
 
-    namedWindow("canny",WINDOW_AUTOSIZE);
-    imshow("canny", maskTemp);
+//    namedWindow("maskMursApres1erePasse",WINDOW_AUTOSIZE);
+//    imshow("maskMursApres1erePasse", maskTemp);
 
-    return(filterDouble(vectLines,20));
+    if(nbWhite > 0){
+        vectLinesTemp = linesDetection(maskTemp,20,10,3);
+        for(Vec4i line: vectLinesTemp){
+            cv::line(maskTemp, Point(line[0],line[1]),Point(line[2],line[3]),Scalar(0,0,0),3, CV_AA);
+            lineTemp.push_back(Point(line[0],line[1]));
+            lineTemp.push_back(Point(line[2],line[3]));
+            vectLines.push_back(lineTemp);
+            lineTemp.clear();
+        }
+    }
+
+//    namedWindow("maskMursApres2emePasse",WINDOW_AUTOSIZE);
+//    imshow("maskMursApres2emePasse", maskTemp);
+
+    return(filterDouble(vectLines,15));
 }
 
-
+vector<Vec4i> EdgeDetection::linesDetection(Mat mask, int thresh, int minLength, int maxGap ){
+    vector<Vec4i> linesVect ;
+    HoughLinesP(mask, linesVect, 1, CV_PI/180, thresh, minLength, maxGap);
+    return linesVect ;
+}
 
 vector<vector<Point2i>> EdgeDetection::filterDouble(vector<vector<Point2i>> vectLines, int thresh){
     vector<vector<Point2i>> linesFilter = vectLines ;
@@ -398,8 +413,6 @@ vector<vector<Point2i>> EdgeDetection::filterDouble(vector<vector<Point2i>> vect
         }
         incr++ ;
     }
-    cout << linesFilter.size() << endl ;
-
 //    bool doNext = true ;
 //    vector<vector<Point2i>> linesTemp ;
 //    vector<Point2i> temp;
@@ -531,9 +544,6 @@ vector<vector<Point2i>> EdgeDetection::filterDouble(vector<vector<Point2i>> vect
 //    }
     return linesFilter ;
 }
-
-
-
 
 ///Fonction permettant de savoir s'il y a une inversion dans le plan
 bool EdgeDetection::isReversed(vector<Point2i> &corners){

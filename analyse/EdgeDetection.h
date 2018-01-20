@@ -59,7 +59,9 @@ public:
      *      renvoie un vecteur de lignes
      *      les lignes sont de la forme Point(x1,y1) Point(x2,y2) qui sont les coordonnées des extrémités d'une ligne
      * */
-    std::vector<std::vector<cv::Point2i>> linesDetection(cv::Mat img, std::vector<cv::Point2i> coordCorner);
+    std::vector<std::vector<cv::Point2i>> wallsDetection(cv::Mat img, std::vector<cv::Point2i> coordCorner, std::vector<cv::Point2i> coordStartEnd);
+
+    std::vector<cv::Vec4i> linesDetection(cv::Mat mask, int thresh, int minLength, int maxGap);
 
     /** détecte les points d'arrivé et de départ
      * @param

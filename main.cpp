@@ -193,7 +193,7 @@ void setupMaze(){
         coordCorner = edgeDetection.getCorner(currentFrame);
 
         /// Detection des murs
-        lines = edgeDetection.linesDetection(currentFrame, coordCorner);
+        lines = edgeDetection.wallsDetection(currentFrame, coordCorner, coordStartEnd);
 
     }while(coordStartEnd.size() != 2);
 
