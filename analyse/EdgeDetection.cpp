@@ -108,9 +108,8 @@ Mat EdgeDetection::buildBasicMask(Mat img){
     StartingPointY = tempy;
 
     ///On créé le mask en fonction du niveau de gris précédent
-    //cout << (maxWhite-maxBlack)/2 <<endl;
     Mat mask;
-    inRange(imgGrey, maxWhite - (maxWhite-maxBlack)/2,maxWhite + (maxWhite-maxBlack)/2, mask);
+    inRange(imgGrey, maxWhite - (maxWhite-maxBlack)/2, 255, mask);
 
     return mask;
 }
@@ -140,7 +139,7 @@ vector<Point2i> EdgeDetection::getCorner(Mat img) {
     dilate(newMask, newMask, kernel1);
     erode(newMask, newMask, kernel1);
 
-    int kernel = 7;
+    int kernel = 10;
     int voisin = 30 ;
     int tab[4][3] = {{0,0,0},
                      {0,0,0},
@@ -149,7 +148,12 @@ vector<Point2i> EdgeDetection::getCorner(Mat img) {
 
     int nbNoirs,rangProche,minNoirs,rangMin ;
 
-    if(points[0][0]==0 ) {
+//    if (points[0][0] == 0) {
+        for(int i = 0; i < 4 ; i++) {
+            for (int j = 0; j < 3; j++) {
+                tab[i][j] = 0;
+            }
+        }
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {
                 if (newMask.at<uchar>(i, j) == 255) {
@@ -166,7 +170,8 @@ vector<Point2i> EdgeDetection::getCorner(Mat img) {
                         ///on regarde si il est proche d'un autre point
                         rangProche = -1;
                         for (int iTab = 0; iTab < 4; iTab++) {
-                            if (i > tab[iTab][2] - voisin && i < tab[iTab][2] + voisin && j > tab[iTab][1] - voisin &&
+                            if (i > tab[iTab][2] - voisin && i < tab[iTab][2] + voisin &&
+                                j > tab[iTab][1] - voisin &&
                                 j < tab[iTab][1] + voisin) {
                                 rangProche = iTab;
                             }
@@ -198,55 +203,56 @@ vector<Point2i> EdgeDetection::getCorner(Mat img) {
         for (int i = 0; i < 4; i++) {
             coordCorner.push_back(Point(tab[i][1], tab[i][2]));
         }
-    }
-    else{
-        int trackingSize = 50;
-        int imax,jmax,noirMax;
+//    } else {
+//        int trackingSize = 50;
+//        int imax, jmax, noirMax;
+//
+//        for (int ip = 0; ip < 4; ip++) {
+//            imax = 0;
+//            jmax = 0;
+//            noirMax = 0;
+//            for (int i = points[ip][1] - trackingSize; i < points[ip][1] + trackingSize; i++) {
+//                for (int j = points[ip][0] - trackingSize; j < points[ip][0] + trackingSize; j++) {
+//                    if (i >= 0 && i < rows && j >= 0 && j < cols && newMask.at<uchar>(i, j) == 255) {
+//                        nbNoirs = 0;
+//                        ///calcul du nb de noirs dans le voisinage
+//                        for (int ii = i - kernel; ii < i + kernel; ii++) {
+//                            for (int jj = j - kernel; jj < j + kernel; jj++) {
+//                                if (ii >= 0 && ii < rows && jj >= 0 && jj < cols &&
+//                                    newMask.at<uchar>(ii, jj) == 0) {
+//                                    nbNoirs++;
+//                                }
+//                            }
+//                        }
+//
+//                        if (nbNoirs > noirMax) {
+//                            noirMax = nbNoirs;
+//                            imax = i;
+//                            jmax = j;
+//                        }
+//                    }
+//                }
+//            }
+//            coordCorner.push_back(Point(jmax, imax));
+//        }
+//    }
 
-        for(int ip = 0 ; ip <4 ; ip ++) {
-            imax = 0;
-            jmax = 0;
-            noirMax = 0;
-            for (int i = points[ip][1]-trackingSize; i < points[ip][1]+trackingSize; i++) {
-                for (int j = points[ip][0]-trackingSize; j < points[ip][0]+trackingSize; j++) {
-                    if (i >= 0 && i < rows && j >= 0 && j < cols && newMask.at<uchar>(i, j) == 255) {
-                        nbNoirs = 0;
-                        ///calcul du nb de noirs dans le voisinage
-                        for (int ii = i - kernel; ii < i + kernel; ii++) {
-                            for (int jj = j - kernel; jj < j + kernel; jj++) {
-                                if (ii >= 0 && ii < rows && jj >= 0 && jj < cols && newMask.at<uchar>(ii, jj) == 0) {
-                                    nbNoirs++;
-                                }
-                            }
-                        }
-
-                        if(nbNoirs > noirMax){
-                            cout << ip << endl;
-                            noirMax = nbNoirs;
-                            imax = i;
-                            jmax = j;
-                        }
-                    }
-                }
-            }
-            //cout << Point(Point(imax,jmax)) << endl;
-            coordCorner.push_back(Point(jmax,imax));
-        }
-    }
     /// On ordonne nos points
     coordCorner = pointsVerification(coordCorner);
 
     for(int i = 0; i < 4; i++){
         points[i][0] = coordCorner[i].x;
         points[i][1] = coordCorner[i].y;
-       // cout << points[i][0] << "  " << points[i][1] << endl ;
+//        cout << points[i][0] << "  " << points[i][1] << endl ;
         circle(newMask, Point(coordCorner[i].x,coordCorner[i].y),i*20+8,Scalar(255,0,0));
     }
+    cout << "" << endl ;
+
+    namedWindow("mask",WINDOW_AUTOSIZE);
+    imshow("mask", newMask);
 
     StartingPointX = (coordCorner[0].x + coordCorner[1].x + coordCorner[2].x + coordCorner[3].x)/4 ;
     StartingPointY = (coordCorner[0].y + coordCorner[1].y + coordCorner[2].y + coordCorner[3].y)/4 ;
-//    namedWindow("mask",WINDOW_AUTOSIZE);
-//    imshow("mask", newMask);
     return coordCorner;
 
 }
@@ -302,7 +308,7 @@ vector<Point2i> EdgeDetection::pointsVerification(vector<Point2i> coord){
     temp.push_back(coord[indice]);
 
     /// On cherche max x-y
-    valTemp1 = 0;
+    valTemp1 = -10000;
     for(int i = 0; i < 4; i++){
         valTemp2 = coord[i].x-coord[i].y;
         if(valTemp2 > valTemp1) {
@@ -324,7 +330,7 @@ vector<Point2i> EdgeDetection::pointsVerification(vector<Point2i> coord){
     temp.push_back(coord[indice]);
 
     ///On cherche max y-x
-    valTemp1 = 0;
+    valTemp1 = -10000;
     for(int i = 0; i < 4; i++){
         valTemp2 = coord[i].y-coord[i].x;
         if(valTemp2 > valTemp1) {
@@ -345,6 +351,10 @@ vector<vector<Point2i>> EdgeDetection::wallsDetection(Mat img, vector<Point2i> c
     cv::floodFill(maskTemp, cv::Point(StartingPointX, StartingPointY), CV_RGB(0, 0, 0));
     maskTemp = ~maskTemp;
     newMask = maskTemp & newMask;
+    line(newMask, coordCorner[0],coordCorner[1],Scalar(255,255,255),3);
+    line(newMask, coordCorner[1],coordCorner[2],Scalar(255,255,255),3);
+    line(newMask, coordCorner[2],coordCorner[3],Scalar(255,255,255),3);
+    line(newMask, coordCorner[3],coordCorner[0],Scalar(255,255,255),3);
     maskTemp = newMask.clone();
     cv::floodFill(maskTemp, cv::Point(0,0), CV_RGB(255, 255, 255));
     maskTemp = ~maskTemp;
@@ -363,22 +373,22 @@ vector<vector<Point2i>> EdgeDetection::wallsDetection(Mat img, vector<Point2i> c
 
     vector<vector<Point2i>> vectLines;
     vector<Point2i> lineTemp ;
-//    lineTemp.push_back(coordCorner[0]);
-//    lineTemp.push_back(coordCorner[1]);
-//    vectLines.push_back(lineTemp);
-//    lineTemp.clear();
-//    lineTemp.push_back(coordCorner[1]);
-//    lineTemp.push_back(coordCorner[2]);
-//    vectLines.push_back(lineTemp);
-//    lineTemp.clear();
-//    lineTemp.push_back(coordCorner[2]);
-//    lineTemp.push_back(coordCorner[3]);
-//    vectLines.push_back(lineTemp);
-//    lineTemp.clear();
-//    lineTemp.push_back(coordCorner[3]);
-//    lineTemp.push_back(coordCorner[0]);
-//    vectLines.push_back(lineTemp);
-//    lineTemp.clear();
+    lineTemp.push_back(coordCorner[0]);
+    lineTemp.push_back(coordCorner[1]);
+    vectLines.push_back(lineTemp);
+    lineTemp.clear();
+    lineTemp.push_back(coordCorner[1]);
+    lineTemp.push_back(coordCorner[2]);
+    vectLines.push_back(lineTemp);
+    lineTemp.clear();
+    lineTemp.push_back(coordCorner[2]);
+    lineTemp.push_back(coordCorner[3]);
+    vectLines.push_back(lineTemp);
+    lineTemp.clear();
+    lineTemp.push_back(coordCorner[3]);
+    lineTemp.push_back(coordCorner[0]);
+    vectLines.push_back(lineTemp);
+    lineTemp.clear();
 
     for(Vec4i line: vectLinesTemp){
         cv::line(maskTemp, Point(line[0],line[1]),Point(line[2],line[3]),Scalar(0,0,0),3, CV_AA);

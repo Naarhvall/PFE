@@ -82,6 +82,8 @@ bool CollisionDetection::findCollisions(Ball *ball, vector<Wall> walls, vector<W
 }
 
 bool CollisionDetection:: hasArrived(Ball *ball, cv::Point2d *point){
+    ball->setVx(0);
+    ball->setVz(0);
     return ball->getX() >= point->x - ball->getR() - OpenGL::FLAG_PIPE_HITBOX
            && ball->getX() <= point->x + ball->getR() + OpenGL::FLAG_PIPE_HITBOX
            && ball->getY() >= point->y - ball->getR() - OpenGL::FLAG_PIPE_HITBOX
