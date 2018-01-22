@@ -88,21 +88,29 @@ Mat EdgeDetection::buildBasicMask(Mat img){
     }
     /// on recupere le niveau de gris le plus present : correspond a la couleur blanche de la feuille
     int max = 0;
-    int rgmax =0;
-    for(int i=0 ; i< 256 ; i++){
+    int maxBlack = 0;
+    int maxWhite = 0;
+    for(int i=0 ; i< 128 ; i++){
         if(histo[i]>max){
-            rgmax = i;
+            maxBlack = i;
             max = histo[i];
         }
     }
-    nivMax =rgmax;
+    max=0;
+    for(int i=128 ; i< 256 ; i++){
+        if(histo[i]> max){
+            maxWhite = i;
+            max = histo[i];
+        }
+    }
 
     StartingPointX = tempx;
     StartingPointY = tempy;
 
     ///On créé le mask en fonction du niveau de gris précédent
+    //cout << (maxWhite-maxBlack)/2 <<endl;
     Mat mask;
-    inRange(imgGrey, nivMax-60, nivMax+60, mask);
+    inRange(imgGrey, maxWhite - (maxWhite-maxBlack)/2,maxWhite + (maxWhite-maxBlack)/2, mask);
 
     return mask;
 }
@@ -140,61 +148,98 @@ vector<Point2i> EdgeDetection::getCorner(Mat img) {
                      {0,0,0}};
 
     int nbNoirs,rangProche,minNoirs,rangMin ;
-    for(int i=0 ; i<rows ; i++){
-        for(int j =0 ; j<cols ; j++){
-            if(newMask.at<uchar>(i,j) == 255){
-                 nbNoirs = 0;
-                ///calcul du nb de noirs dans le voisinage
-                for(int ii = i-kernel ; ii <i+kernel ; ii++){
-                    for(int jj = j-kernel ; jj<j+kernel ; jj++){
-                        if(ii >= 0 && ii<rows && jj>=0 && jj<cols && newMask.at<uchar>(ii,jj) == 0){
-                            nbNoirs++;
-                        }
-                    }
-                }
-                if(nbNoirs > kernel*kernel*2){
-                    ///on regarde si il est proche d'un autre point
-                    rangProche = -1 ;
-                    for(int iTab = 0 ; iTab<4 ; iTab++){
-                        if( i > tab[iTab][2]-voisin && i < tab[iTab][2]+voisin && j > tab[iTab][1]-voisin && j < tab[iTab][1]+voisin){
-                            rangProche = iTab ;
-                        }
-                    }
-                    ///si oui
-                    if(rangProche != -1 && nbNoirs > tab[rangProche][0]){
-                        tab[rangProche][0] = nbNoirs ;
-                        tab[rangProche][1] = j ;
-                        tab[rangProche][2] = i ;
-                    }
-                    else if(rangProche == -1){
-                        minNoirs = kernel*kernel*4;
-                        rangMin = 0;
-                        for(int iTab =0 ; iTab<4 ; iTab++){
-                            if(tab[iTab][0] < minNoirs){
-                                minNoirs = tab[iTab][0];
-                                rangMin = iTab ;
+
+    if(points[0][0]==0 ) {
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                if (newMask.at<uchar>(i, j) == 255) {
+                    nbNoirs = 0;
+                    ///calcul du nb de noirs dans le voisinage
+                    for (int ii = i - kernel; ii < i + kernel; ii++) {
+                        for (int jj = j - kernel; jj < j + kernel; jj++) {
+                            if (ii >= 0 && ii < rows && jj >= 0 && jj < cols && newMask.at<uchar>(ii, jj) == 0) {
+                                nbNoirs++;
                             }
                         }
-                        if( minNoirs<nbNoirs){
-                            tab[rangMin][0] = nbNoirs ;
-                            tab[rangMin][1] = j ;
-                            tab[rangMin][2] = i ;
+                    }
+                    if (nbNoirs > kernel * kernel * 2) {
+                        ///on regarde si il est proche d'un autre point
+                        rangProche = -1;
+                        for (int iTab = 0; iTab < 4; iTab++) {
+                            if (i > tab[iTab][2] - voisin && i < tab[iTab][2] + voisin && j > tab[iTab][1] - voisin &&
+                                j < tab[iTab][1] + voisin) {
+                                rangProche = iTab;
+                            }
+                        }
+                        ///si oui
+                        if (rangProche != -1 && nbNoirs > tab[rangProche][0]) {
+                            tab[rangProche][0] = nbNoirs;
+                            tab[rangProche][1] = j;
+                            tab[rangProche][2] = i;
+                        } else if (rangProche == -1) {
+                            minNoirs = kernel * kernel * 4;
+                            rangMin = 0;
+                            for (int iTab = 0; iTab < 4; iTab++) {
+                                if (tab[iTab][0] < minNoirs) {
+                                    minNoirs = tab[iTab][0];
+                                    rangMin = iTab;
+                                }
+                            }
+                            if (minNoirs < nbNoirs) {
+                                tab[rangMin][0] = nbNoirs;
+                                tab[rangMin][1] = j;
+                                tab[rangMin][2] = i;
+                            }
                         }
                     }
                 }
             }
         }
+        for (int i = 0; i < 4; i++) {
+            coordCorner.push_back(Point(tab[i][1], tab[i][2]));
+        }
     }
-    for(int i=0 ; i<4 ; i++){
-        coordCorner.push_back(Point(tab[i][1],tab[i][2]));
-    }
+    else{
+        int trackingSize = 50;
+        int imax,jmax,noirMax;
 
+        for(int ip = 0 ; ip <4 ; ip ++) {
+            imax = 0;
+            jmax = 0;
+            noirMax = 0;
+            for (int i = points[ip][1]-trackingSize; i < points[ip][1]+trackingSize; i++) {
+                for (int j = points[ip][0]-trackingSize; j < points[ip][0]+trackingSize; j++) {
+                    if (i >= 0 && i < rows && j >= 0 && j < cols && newMask.at<uchar>(i, j) == 255) {
+                        nbNoirs = 0;
+                        ///calcul du nb de noirs dans le voisinage
+                        for (int ii = i - kernel; ii < i + kernel; ii++) {
+                            for (int jj = j - kernel; jj < j + kernel; jj++) {
+                                if (ii >= 0 && ii < rows && jj >= 0 && jj < cols && newMask.at<uchar>(ii, jj) == 0) {
+                                    nbNoirs++;
+                                }
+                            }
+                        }
+
+                        if(nbNoirs > noirMax){
+                            cout << ip << endl;
+                            noirMax = nbNoirs;
+                            imax = i;
+                            jmax = j;
+                        }
+                    }
+                }
+            }
+            //cout << Point(Point(imax,jmax)) << endl;
+            coordCorner.push_back(Point(jmax,imax));
+        }
+    }
     /// On ordonne nos points
     coordCorner = pointsVerification(coordCorner);
 
     for(int i = 0; i < 4; i++){
         points[i][0] = coordCorner[i].x;
         points[i][1] = coordCorner[i].y;
+       // cout << points[i][0] << "  " << points[i][1] << endl ;
         circle(newMask, Point(coordCorner[i].x,coordCorner[i].y),i*20+8,Scalar(255,0,0));
     }
 
@@ -294,24 +339,8 @@ vector<Point2i> EdgeDetection::pointsVerification(vector<Point2i> coord){
 
 ///Fonction permettant la détection des lignes
 vector<vector<Point2i>> EdgeDetection::wallsDetection(Mat img, vector<Point2i> coordCorner, vector<Point2i> coordStartEnd){
-    /// détection des contours avec Canny
-
-    /// detection des lignes dans le vect lines
-    /// vecteur dans lequel sont stockées les lignes
-    ///     lignes stockées sous la forme (x1,y1,x2,y2)
-    /// houghLinesP(imgsource,
-    /// vectdest,
-    /// distance resolution en pixels
-    /// angle resolution en rad
-    /// seuil :The minimum number of intersections to “detect” a line
-    /// longueur min d'une ligne détectée
-    /// max ecart entre pixels de la ligne)
 
     Mat newMask = buildBasicMask(img);
-//    Mat imgGrey;
-//    cvtColor(img, imgGrey, COLOR_RGB2GRAY);
-//    auto midGrey = (int)imgGrey.at<uchar>(StartingPointY, StartingPointX);
-//    inRange(imgGrey, midGrey-40, midGrey+40, newMask);
     Mat maskTemp = newMask.clone();
     cv::floodFill(maskTemp, cv::Point(StartingPointX, StartingPointY), CV_RGB(0, 0, 0));
     maskTemp = ~maskTemp;
@@ -389,6 +418,16 @@ vector<vector<Point2i>> EdgeDetection::wallsDetection(Mat img, vector<Point2i> c
 }
 
 vector<Vec4i> EdgeDetection::linesDetection(Mat mask, int thresh, int minLength, int maxGap ){
+    /// detection des lignes dans le vect lines
+    /// vecteur dans lequel sont stockées les lignes
+    ///     lignes stockées sous la forme (x1,y1,x2,y2)
+    /// houghLinesP(imgsource,
+    /// vectdest,
+    /// distance resolution en pixels
+    /// angle resolution en rad
+    /// seuil :The minimum number of intersections to “detect” a line
+    /// longueur min d'une ligne détectée
+    /// max ecart entre pixels de la ligne)
     vector<Vec4i> linesVect ;
     HoughLinesP(mask, linesVect, 1, CV_PI/180, thresh, minLength, maxGap);
     return linesVect ;
