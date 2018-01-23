@@ -109,8 +109,7 @@ Mat EdgeDetection::buildBasicMask(Mat img){
 
     ///On créé le mask en fonction du niveau de gris précédent
     Mat mask;
-    inRange(imgGrey, maxWhite - (maxWhite-maxBlack)/2, 255, mask);
-
+    inRange(imgGrey, maxWhite - 60, 255, mask);
     return mask;
 }
 
@@ -248,9 +247,7 @@ vector<Point2i> EdgeDetection::getCorner(Mat img) {
     }
     cout << "" << endl ;
 
-    namedWindow("mask",WINDOW_AUTOSIZE);
-    imshow("mask", newMask);
-
+//    namedWindow("mask",WINDOW_AUTOSIZE);e
     StartingPointX = (coordCorner[0].x + coordCorner[1].x + coordCorner[2].x + coordCorner[3].x)/4 ;
     StartingPointY = (coordCorner[0].y + coordCorner[1].y + coordCorner[2].y + coordCorner[3].y)/4 ;
     return coordCorner;
