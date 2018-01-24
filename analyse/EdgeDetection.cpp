@@ -245,7 +245,6 @@ vector<Point2i> EdgeDetection::getCorner(Mat img) {
 //        cout << points[i][0] << "  " << points[i][1] << endl ;
         circle(newMask, Point(coordCorner[i].x,coordCorner[i].y),i*20+8,Scalar(255,0,0));
     }
-    cout << "" << endl ;
 
 //    namedWindow("mask",WINDOW_AUTOSIZE);e
     StartingPointX = (coordCorner[0].x + coordCorner[1].x + coordCorner[2].x + coordCorner[3].x)/4 ;

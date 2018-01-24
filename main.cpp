@@ -31,17 +31,35 @@ int main(int argc, char** argv){
         Mat currentFrame = cameraStream->getCurrentFrame();
         putText(currentFrame, "Press enter to play 3D mode", Point2i(0, currentFrame.rows - 50), FONT_HERSHEY_PLAIN, 2, Scalar(0, 0, 255), 2);
         putText(currentFrame, "Press space bar to play normal mode", Point2i(0, currentFrame.rows), FONT_HERSHEY_PLAIN, 2, Scalar(0, 0, 255), 2);
+        float long12,long03, long01, long23, ratio = 0;
+        EdgeDetection ED = EdgeDetection(currentFrame, true);
+        vector<Point2i> coordCorner = ED.getCorner(currentFrame);
+        long12 = sqrt(pow(coordCorner[1].x-coordCorner[2].x,2)+pow(coordCorner[1].y-coordCorner[2].y,2));
+        long03 = sqrt(pow(coordCorner[0].x-coordCorner[3].x,2)+pow(coordCorner[0].y-coordCorner[3].y,2));
 
+        if(long03 > long12*0.9 && long03 < long12*1.1){
+            long01 = sqrt(pow(coordCorner[0].x-coordCorner[1].x,2)+pow(coordCorner[0].y-coordCorner[1].y,2));
+            long23 = sqrt(pow(coordCorner[2].x-coordCorner[3].x,2)+pow(coordCorner[2].y-coordCorner[3].y,2));
+
+            ratio = long01/long23;
+            cout<<ratio<<endl;
+        }
+        bool is45 = ratio > 0.73 && ratio < 0.8 ;
+        if(is45){
+            putText(currentFrame, "O", Point2i(currentFrame.cols-20, 20), FONT_HERSHEY_PLAIN, 2, Scalar(0, 255, 0), 2);
+        }else{
+            putText(currentFrame, "X", Point2i(currentFrame.cols-20, 20), FONT_HERSHEY_PLAIN, 2, Scalar(0, 0, 255), 2);
+        }
         imshow("aMAZEd Calibration", currentFrame);
 
         /// Si on appuie sur :
         /// touche espace => normal mode
         /// touche entrée => anaglyph mode
         int key = waitKey(30);
-        if(key == 32){
+        if(key == 32 && is45){
             anaglyph = false;
             break;
-        } else if(key == 13){
+        } else if(key == 13 && is45){
             anaglyph = true;
             break;
         }
