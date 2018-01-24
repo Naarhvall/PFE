@@ -113,11 +113,7 @@ Mat EdgeDetection::buildBasicMask(Mat img){
     return mask;
 }
 
-/// Fonction permettant de récupérer les 4 coins du plan
 vector<Point2i> EdgeDetection::getCorner(Mat img) {
-
-    ///Initialisation des variables
-    std::vector<KeyPoint> keypoints;
     vector<Point2i> coordCorner;
 
     /// recréation d'un mask quivabien
@@ -138,120 +134,193 @@ vector<Point2i> EdgeDetection::getCorner(Mat img) {
     dilate(newMask, newMask, kernel1);
     erode(newMask, newMask, kernel1);
 
-    int kernel = 10;
-    int voisin = 30 ;
-    int tab[4][3] = {{0,0,0},
-                     {0,0,0},
-                     {0,0,0},
-                     {0,0,0}};
+    int minxy = cols+rows, xminxy, yminxy;
+    int maxx_y = -cols-rows, xmaxx_y, ymaxx_y ;
+    int maxxy =-cols-rows, xmaxxy, ymaxxy;
+    int maxy_x = -cols-rows, xmaxy_x, ymaxy_x;
 
-    int nbNoirs,rangProche,minNoirs,rangMin ;
-
-//    if (points[0][0] == 0) {
-        for(int i = 0; i < 4 ; i++) {
-            for (int j = 0; j < 3; j++) {
-                tab[i][j] = 0;
-            }
-        }
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < cols; j++) {
-                if (newMask.at<uchar>(i, j) == 255) {
-                    nbNoirs = 0;
-                    ///calcul du nb de noirs dans le voisinage
-                    for (int ii = i - kernel; ii < i + kernel; ii++) {
-                        for (int jj = j - kernel; jj < j + kernel; jj++) {
-                            if (ii >= 0 && ii < rows && jj >= 0 && jj < cols && newMask.at<uchar>(ii, jj) == 0) {
-                                nbNoirs++;
-                            }
-                        }
-                    }
-                    if (nbNoirs > kernel * kernel * 2) {
-                        ///on regarde si il est proche d'un autre point
-                        rangProche = -1;
-                        for (int iTab = 0; iTab < 4; iTab++) {
-                            if (i > tab[iTab][2] - voisin && i < tab[iTab][2] + voisin &&
-                                j > tab[iTab][1] - voisin &&
-                                j < tab[iTab][1] + voisin) {
-                                rangProche = iTab;
-                            }
-                        }
-                        ///si oui
-                        if (rangProche != -1 && nbNoirs > tab[rangProche][0]) {
-                            tab[rangProche][0] = nbNoirs;
-                            tab[rangProche][1] = j;
-                            tab[rangProche][2] = i;
-                        } else if (rangProche == -1) {
-                            minNoirs = kernel * kernel * 4;
-                            rangMin = 0;
-                            for (int iTab = 0; iTab < 4; iTab++) {
-                                if (tab[iTab][0] < minNoirs) {
-                                    minNoirs = tab[iTab][0];
-                                    rangMin = iTab;
-                                }
-                            }
-                            if (minNoirs < nbNoirs) {
-                                tab[rangMin][0] = nbNoirs;
-                                tab[rangMin][1] = j;
-                                tab[rangMin][2] = i;
-                            }
-                        }
-                    }
+    for (int i = 1; i < rows; i++) {
+        for (int j = 1; j < cols; j++) {
+            if (newMask.at<uchar>(i, j) == 255) {
+                if(i+j < minxy){
+                    minxy=i+j;
+                    xminxy=j;
+                    yminxy=i;
+                }if(j-i>maxx_y){
+                    maxx_y=j-i;
+                    xmaxx_y =j;
+                    ymaxx_y =i;
+                }if(i+j > maxxy){
+                    maxxy=i+j;
+                    xmaxxy = j;
+                    ymaxxy=i;
+                }if(i-j>maxy_x){
+                    maxy_x = i-j;
+                    xmaxy_x=j;
+                    ymaxy_x=i;
                 }
             }
         }
-        for (int i = 0; i < 4; i++) {
-            coordCorner.push_back(Point(tab[i][1], tab[i][2]));
-        }
-//    } else {
-//        int trackingSize = 50;
-//        int imax, jmax, noirMax;
+    }
+
+    coordCorner.push_back(Point(xminxy,yminxy));
+    coordCorner.push_back(Point(xmaxx_y,ymaxx_y));
+    coordCorner.push_back(Point(xmaxxy,ymaxxy));
+    coordCorner.push_back(Point(xmaxy_x,ymaxy_x));
+
+    for(int i = 0; i < 4; i++){
+        circle(newMask, Point(coordCorner[i].x,coordCorner[i].y),i*20+8,Scalar(255,0,0));
+        points[i][0] = coordCorner[i].x;
+        points[i][1] = coordCorner[i].y;
+    }
+    namedWindow("newMask",WINDOW_AUTOSIZE);
+    imshow("newMask",newMask);
+
+    StartingPointX = (coordCorner[0].x + coordCorner[1].x + coordCorner[2].x + coordCorner[3].x)/4 ;
+    StartingPointY = (coordCorner[0].y + coordCorner[1].y + coordCorner[2].y + coordCorner[3].y)/4 ;
+
+    return coordCorner ;
+
+}
+/// Fonction permettant de récupérer les 4 coins du plan
+//vector<Point2i> EdgeDetection::getCorner(Mat img) {
 //
-//        for (int ip = 0; ip < 4; ip++) {
-//            imax = 0;
-//            jmax = 0;
-//            noirMax = 0;
-//            for (int i = points[ip][1] - trackingSize; i < points[ip][1] + trackingSize; i++) {
-//                for (int j = points[ip][0] - trackingSize; j < points[ip][0] + trackingSize; j++) {
-//                    if (i >= 0 && i < rows && j >= 0 && j < cols && newMask.at<uchar>(i, j) == 255) {
-//                        nbNoirs = 0;
-//                        ///calcul du nb de noirs dans le voisinage
-//                        for (int ii = i - kernel; ii < i + kernel; ii++) {
-//                            for (int jj = j - kernel; jj < j + kernel; jj++) {
-//                                if (ii >= 0 && ii < rows && jj >= 0 && jj < cols &&
-//                                    newMask.at<uchar>(ii, jj) == 0) {
-//                                    nbNoirs++;
-//                                }
+//    ///Initialisation des variables
+//    std::vector<KeyPoint> keypoints;
+//    vector<Point2i> coordCorner;
+//
+//    /// recréation d'un mask quivabien
+//    Mat newMask = buildBasicMask(img);
+//    int rows = newMask.rows;
+//    int cols = newMask.cols;
+//
+//    Mat maskTemp = newMask.clone();
+//    cv::floodFill(maskTemp, cv::Point(StartingPointX, StartingPointY), CV_RGB(0, 0, 0));
+//    maskTemp = ~maskTemp;
+//    newMask = maskTemp & newMask;
+//    maskTemp = newMask.clone();
+//    cv::floodFill(maskTemp, cv::Point(0,0), CV_RGB(255, 255, 255));
+//    maskTemp = ~maskTemp;
+//    newMask= newMask | maskTemp;
+//    Mat kernel1;
+//    kernel1 = getStructuringElement(1, Size(7,7), Point(2,2));
+//    dilate(newMask, newMask, kernel1);
+//    erode(newMask, newMask, kernel1);
+//
+//    int kernel = 10;
+//    int voisin = 30 ;
+//    int tab[4][3] = {{0,0,0},
+//                     {0,0,0},
+//                     {0,0,0},
+//                     {0,0,0}};
+//
+//    int nbNoirs,rangProche,minNoirs,rangMin ;
+//
+////    if (points[0][0] == 0) {
+//        for(int i = 0; i < 4 ; i++) {
+//            for (int j = 0; j < 3; j++) {
+//                tab[i][j] = 0;
+//            }
+//        }
+//        for (int i = 0; i < rows; i++) {
+//            for (int j = 0; j < cols; j++) {
+//                if (newMask.at<uchar>(i, j) == 255) {
+//                    nbNoirs = 0;
+//                    ///calcul du nb de noirs dans le voisinage
+//                    for (int ii = i - kernel; ii < i + kernel; ii++) {
+//                        for (int jj = j - kernel; jj < j + kernel; jj++) {
+//                            if (ii >= 0 && ii < rows && jj >= 0 && jj < cols && newMask.at<uchar>(ii, jj) == 0) {
+//                                nbNoirs++;
 //                            }
 //                        }
-//
-//                        if (nbNoirs > noirMax) {
-//                            noirMax = nbNoirs;
-//                            imax = i;
-//                            jmax = j;
+//                    }
+//                    if (nbNoirs > kernel * kernel * 2) {
+//                        ///on regarde si il est proche d'un autre point
+//                        rangProche = -1;
+//                        for (int iTab = 0; iTab < 4; iTab++) {
+//                            if (i > tab[iTab][2] - voisin && i < tab[iTab][2] + voisin &&
+//                                j > tab[iTab][1] - voisin &&
+//                                j < tab[iTab][1] + voisin) {
+//                                rangProche = iTab;
+//                            }
+//                        }
+//                        ///si oui
+//                        if (rangProche != -1 && nbNoirs > tab[rangProche][0]) {
+//                            tab[rangProche][0] = nbNoirs;
+//                            tab[rangProche][1] = j;
+//                            tab[rangProche][2] = i;
+//                        } else if (rangProche == -1) {
+//                            minNoirs = kernel * kernel * 4;
+//                            rangMin = 0;
+//                            for (int iTab = 0; iTab < 4; iTab++) {
+//                                if (tab[iTab][0] < minNoirs) {
+//                                    minNoirs = tab[iTab][0];
+//                                    rangMin = iTab;
+//                                }
+//                            }
+//                            if (minNoirs < nbNoirs) {
+//                                tab[rangMin][0] = nbNoirs;
+//                                tab[rangMin][1] = j;
+//                                tab[rangMin][2] = i;
+//                            }
 //                        }
 //                    }
 //                }
 //            }
-//            coordCorner.push_back(Point(jmax, imax));
 //        }
+//        for (int i = 0; i < 4; i++) {
+//            coordCorner.push_back(Point(tab[i][1], tab[i][2]));
+//        }
+////    } else {
+////        int trackingSize = 50;
+////        int imax, jmax, noirMax;
+////
+////        for (int ip = 0; ip < 4; ip++) {
+////            imax = 0;
+////            jmax = 0;
+////            noirMax = 0;
+////            for (int i = points[ip][1] - trackingSize; i < points[ip][1] + trackingSize; i++) {
+////                for (int j = points[ip][0] - trackingSize; j < points[ip][0] + trackingSize; j++) {
+////                    if (i >= 0 && i < rows && j >= 0 && j < cols && newMask.at<uchar>(i, j) == 255) {
+////                        nbNoirs = 0;
+////                        ///calcul du nb de noirs dans le voisinage
+////                        for (int ii = i - kernel; ii < i + kernel; ii++) {
+////                            for (int jj = j - kernel; jj < j + kernel; jj++) {
+////                                if (ii >= 0 && ii < rows && jj >= 0 && jj < cols &&
+////                                    newMask.at<uchar>(ii, jj) == 0) {
+////                                    nbNoirs++;
+////                                }
+////                            }
+////                        }
+////
+////                        if (nbNoirs > noirMax) {
+////                            noirMax = nbNoirs;
+////                            imax = i;
+////                            jmax = j;
+////                        }
+////                    }
+////                }
+////            }
+////            coordCorner.push_back(Point(jmax, imax));
+////        }
+////    }
+//
+//    /// On ordonne nos points
+//    coordCorner = pointsVerification(coordCorner);
+//
+//    for(int i = 0; i < 4; i++){
+//        points[i][0] = coordCorner[i].x;
+//        points[i][1] = coordCorner[i].y;
+////        cout << points[i][0] << "  " << points[i][1] << endl ;
+//        circle(newMask, Point(coordCorner[i].x,coordCorner[i].y),i*20+8,Scalar(255,0,0));
 //    }
-
-    /// On ordonne nos points
-    coordCorner = pointsVerification(coordCorner);
-
-    for(int i = 0; i < 4; i++){
-        points[i][0] = coordCorner[i].x;
-        points[i][1] = coordCorner[i].y;
-//        cout << points[i][0] << "  " << points[i][1] << endl ;
-        circle(newMask, Point(coordCorner[i].x,coordCorner[i].y),i*20+8,Scalar(255,0,0));
-    }
-
-//    namedWindow("mask",WINDOW_AUTOSIZE);e
-    StartingPointX = (coordCorner[0].x + coordCorner[1].x + coordCorner[2].x + coordCorner[3].x)/4 ;
-    StartingPointY = (coordCorner[0].y + coordCorner[1].y + coordCorner[2].y + coordCorner[3].y)/4 ;
-    return coordCorner;
-
-}
+//
+////    namedWindow("mask",WINDOW_AUTOSIZE);e
+//    StartingPointX = (coordCorner[0].x + coordCorner[1].x + coordCorner[2].x + coordCorner[3].x)/4 ;
+//    StartingPointY = (coordCorner[0].y + coordCorner[1].y + coordCorner[2].y + coordCorner[3].y)/4 ;
+//    return coordCorner;
+//
+//}
 
 ///Fonctions permettant de détecter le départ et l'arrivé de la boule
 vector<Point2i> EdgeDetection::startEndDetection(Mat img) {
@@ -463,135 +532,7 @@ vector<vector<Point2i>> EdgeDetection::filterDouble(vector<vector<Point2i>> vect
         }
         incr++ ;
     }
-//    bool doNext = true ;
-//    vector<vector<Point2i>> linesTemp ;
-//    vector<Point2i> temp;
-//    vector<bool> isUsed = vector<bool>(linesFilter.size(),false);
-//    float vect1,vect2;
-//    float threshVect = 0.07;
-//    bool noMatch;
-//    cout << linesFilter.size() << endl ;
-//    while(doNext ==1){
-//        doNext = false ;
-//        //parcours de tout les murs
-//        for(int currentWall = 0 ; currentWall < linesFilter.size() ; currentWall++){
-//            //si mur non deja utilisé
-//            noMatch = true ;
-//            if(!isUsed[currentWall]) {
-//                //calcul de son vect directeur
-//                if (linesFilter[currentWall][0].y != linesFilter[currentWall][1].y)
-//                    vect1 = (linesFilter[currentWall][0].x - linesFilter[currentWall][1].x) /
-//                            (linesFilter[currentWall][0].y - linesFilter[currentWall][1].y);
-//                else vect1 = -1;
-//                //parcours des autres murs
-//                for (int otherWall = 0; otherWall < linesFilter.size(); otherWall++) {
-//                    //si different et pas deja utilise
-//                    if (otherWall != currentWall && !isUsed[otherWall]) {
-//                        // calcul du 2eme vect dir
-//                        if (linesFilter[otherWall][0].y != linesFilter[otherWall][1].y)
-//                            vect2 = (linesFilter[otherWall][0].x - linesFilter[otherWall][1].x) /
-//                                    (linesFilter[otherWall][0].y - linesFilter[otherWall][1].y);
-//                        else vect2 = -1;
-//                        // si mm vects dirs
-//                        if (vect2 < vect1 + threshVect && vect2 > vect1 - threshVect) {
-//                            //si ~2 mm murs
-//                            if(linesFilter[otherWall][0].x < linesFilter[currentWall][0].x+thresh &&
-//                               linesFilter[otherWall][0].x > linesFilter[currentWall][0].x-thresh &&
-//                               linesFilter[otherWall][0].y < linesFilter[currentWall][0].y+thresh &&
-//                               linesFilter[otherWall][0].y > linesFilter[currentWall][0].y-thresh &&
-//                               linesFilter[otherWall][1].x < linesFilter[currentWall][1].x+thresh &&
-//                               linesFilter[otherWall][1].x > linesFilter[currentWall][1].x-thresh &&
-//                               linesFilter[otherWall][1].y < linesFilter[currentWall][1].y+thresh &&
-//                               linesFilter[otherWall][1].y > linesFilter[currentWall][1].y-thresh ||
-//
-//                               linesFilter[otherWall][0].x < linesFilter[currentWall][1].x+thresh &&
-//                               linesFilter[otherWall][0].x > linesFilter[currentWall][1].x-thresh &&
-//                               linesFilter[otherWall][0].y < linesFilter[currentWall][1].y+thresh &&
-//                               linesFilter[otherWall][0].y > linesFilter[currentWall][1].y-thresh &&
-//                               linesFilter[otherWall][1].x < linesFilter[currentWall][0].x+thresh &&
-//                               linesFilter[otherWall][1].x > linesFilter[currentWall][0].x-thresh &&
-//                               linesFilter[otherWall][1].y < linesFilter[currentWall][0].y+thresh &&
-//                               linesFilter[otherWall][1].y > linesFilter[currentWall][0].y-thresh){
-//                                temp.push_back(Point2i(linesFilter[currentWall][0].x,linesFilter[currentWall][0].y));
-//                                temp.push_back(Point2i(linesFilter[currentWall][1].x,linesFilter[currentWall][1].y));
-//                                linesTemp.push_back(temp);
-//                                temp.clear();
-//                                doNext = true;
-//                                isUsed[currentWall] = true ;
-//                                isUsed[otherWall] = true ;
-//                                noMatch = false;
-//                            }
-//                            else if(linesFilter[otherWall][0].x < linesFilter[currentWall][0].x+thresh &&
-//                                    linesFilter[otherWall][0].x > linesFilter[currentWall][0].x-thresh &&
-//                                    linesFilter[otherWall][0].y < linesFilter[currentWall][0].y+thresh &&
-//                                    linesFilter[otherWall][0].y > linesFilter[currentWall][0].y-thresh ){
-//                                temp.push_back(Point2i(linesFilter[currentWall][1].x,linesFilter[currentWall][1].y));
-//                                temp.push_back(Point2i(linesFilter[otherWall][1].x,linesFilter[otherWall][1].y));
-//                                linesTemp.push_back(temp);
-//                                temp.clear();
-//                                doNext = true;
-//                                isUsed[currentWall] = true ;
-//                                isUsed[otherWall] = true ;
-//                                noMatch = false;
-//                            }
-//                            else if(linesFilter[otherWall][1].x < linesFilter[currentWall][1].x+thresh &&
-//                                    linesFilter[otherWall][1].x > linesFilter[currentWall][1].x-thresh &&
-//                                    linesFilter[otherWall][1].y < linesFilter[currentWall][1].y+thresh &&
-//                                    linesFilter[otherWall][1].y > linesFilter[currentWall][1].y-thresh){
-//                                temp.push_back(Point2i(linesFilter[currentWall][0].x,linesFilter[currentWall][0].y));
-//                                temp.push_back(Point2i(linesFilter[otherWall][0].x,linesFilter[otherWall][0].y));
-//                                linesTemp.push_back(temp);
-//                                temp.clear();
-//                                doNext = true;
-//                                isUsed[currentWall] = true ;
-//                                isUsed[otherWall] = true ;
-//                                noMatch = false;
-//                            }
-//                            else if(linesFilter[otherWall][0].x < linesFilter[currentWall][1].x+thresh &&
-//                                    linesFilter[otherWall][0].x > linesFilter[currentWall][1].x-thresh &&
-//                                    linesFilter[otherWall][0].y < linesFilter[currentWall][1].y+thresh &&
-//                                    linesFilter[otherWall][0].y > linesFilter[currentWall][1].y-thresh){
-//                                temp.push_back(Point2i(linesFilter[currentWall][0].x,linesFilter[currentWall][0].y));
-//                                temp.push_back(Point2i(linesFilter[otherWall][1].x,linesFilter[otherWall][1].y));
-//                                linesTemp.push_back(temp);
-//                                temp.clear();
-//                                doNext = true;
-//                                isUsed[currentWall] = true ;
-//                                isUsed[otherWall] = true ;
-//                                noMatch = false;
-//                            }
-//                            else if(linesFilter[otherWall][1].x < linesFilter[currentWall][0].x+thresh &&
-//                                    linesFilter[otherWall][1].x > linesFilter[currentWall][0].x-thresh &&
-//                                    linesFilter[otherWall][1].y < linesFilter[currentWall][0].y+thresh &&
-//                                    linesFilter[otherWall][1].y > linesFilter[currentWall][0].y-thresh){
-//                                temp.push_back(Point2i(linesFilter[currentWall][1].x,linesFilter[currentWall][1].y));
-//                                temp.push_back(Point2i(linesFilter[otherWall][0].x,linesFilter[otherWall][0].y));
-//                                linesTemp.push_back(temp);
-//                                temp.clear();
-//                                doNext = true;
-//                                isUsed[currentWall] = true ;
-//                                isUsed[otherWall] = true ;
-//                                noMatch = false;
-//                            }
-//                        }
-//                    }
-//                }
-//                if (noMatch){
-//                    temp.push_back(Point2i(linesFilter[currentWall][1].x,linesFilter[currentWall][1].y));
-//                    temp.push_back(Point2i(linesFilter[currentWall][0].x,linesFilter[currentWall][0].y));
-//                    linesTemp.push_back(temp);
-//                    temp.clear();
-//                }
-//            }
-//        }
-//        //linesTemp : nouveaux murs
-//        //linesFilter : anciens murs
-//        //isUsed : anciens murs utilisés
-//        linesFilter = linesTemp;
-//        linesTemp.clear();
-//        isUsed = vector<bool>(linesFilter.size(),false);
-//        cout << linesFilter.size() << endl ;
-//    }
+
     return linesFilter ;
 }
 

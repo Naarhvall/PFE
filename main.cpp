@@ -42,7 +42,6 @@ int main(int argc, char** argv){
             long23 = sqrt(pow(coordCorner[2].x-coordCorner[3].x,2)+pow(coordCorner[2].y-coordCorner[3].y,2));
 
             ratio = long01/long23;
-            cout<<ratio<<endl;
         }
         bool is45 = ratio > 0.73 && ratio < 0.8 ;
         if(is45){
