@@ -112,8 +112,89 @@ Mat EdgeDetection::buildBasicMask(Mat img){
     inRange(imgGrey, maxWhite - 60, 255, mask);
     return mask;
 }
-
 vector<Point2i> EdgeDetection::getCorner(Mat img) {
+    vector<Point2i> coordCorner;
+
+    /// recréation d'un mask quivabien
+    Mat newMask = buildBasicMask(img);
+    int rows = newMask.rows;
+    int cols = newMask.cols;
+
+    Mat maskTemp = newMask.clone();
+    cv::floodFill(maskTemp, cv::Point(StartingPointX, StartingPointY), CV_RGB(0, 0, 0));
+    maskTemp = ~maskTemp;
+    newMask = maskTemp & newMask;
+    maskTemp = newMask.clone();
+    cv::floodFill(maskTemp, cv::Point(0,0), CV_RGB(255, 255, 255));
+    maskTemp = ~maskTemp;
+    newMask= newMask | maskTemp;
+    Mat kernel1;
+    kernel1 = getStructuringElement(1, Size(7,7), Point(2,2));
+    dilate(newMask, newMask, kernel1);
+    erode(newMask, newMask, kernel1);
+
+    int trackingSize = 25;
+    int imax, jmax, noirMax,nbNoirs, kernel =7;
+
+    for (int ip = 0; ip < 4; ip++) {
+        imax = 0;
+        jmax = 0;
+        noirMax = 0;
+        for (int i = points[ip][1] - trackingSize; i < points[ip][1] + trackingSize; i++) {
+            for (int j = points[ip][0] - trackingSize; j < points[ip][0] + trackingSize; j++) {
+                if (i >= 0 && i < rows && j >= 0 && j < cols && newMask.at<uchar>(i, j) == 255) {
+                    nbNoirs = 0;
+                    ///calcul du nb de noirs dans le voisinage
+                    for (int ii = i - kernel; ii < i + kernel; ii++) {
+                        for (int jj = j - kernel; jj < j + kernel; jj++) {
+                            if (ii >= 0 && ii < rows && jj >= 0 && jj < cols &&
+                                newMask.at<uchar>(ii, jj) == 0) {
+                                nbNoirs++;
+                            }
+                        }
+                    }
+
+                    if (nbNoirs > kernel*kernel*2 && nbNoirs > noirMax) {
+                        noirMax = nbNoirs;
+                        imax = i;
+                        jmax = j;
+                    }
+                }
+            }
+        }
+        coordCorner.push_back(Point(jmax, imax));
+    }
+    coordCorner = pointsVerification(coordCorner);
+    bool isOk = true;
+
+    for(int i = 0; i < 4; i++){
+        isOk &= coordCorner[i].x != 0 && coordCorner[i].y != 0 ;
+//        points[i][0] = coordCorner[i].x;
+//        points[i][1] = coordCorner[i].y;
+        circle(newMask, Point(coordCorner[i].x,coordCorner[i].y),i*20+8,Scalar(255,0,0));
+    }
+
+    if(isOk){
+        cout << "VOISINAGE" << endl;
+        for(int i = 0; i < 4; i++){
+        points[i][0] = coordCorner[i].x;
+        points[i][1] = coordCorner[i].y;
+        }
+        namedWindow("newMask",WINDOW_AUTOSIZE);
+        imshow("newMask",newMask);
+    }
+    else{
+        cout << "PARCOURS ENTIER" << endl;
+        coordCorner = getCorner2(img);
+    }
+
+    StartingPointX = (coordCorner[0].x + coordCorner[1].x + coordCorner[2].x + coordCorner[3].x)/4 ;
+    StartingPointY = (coordCorner[0].y + coordCorner[1].y + coordCorner[2].y + coordCorner[3].y)/4 ;
+
+    return coordCorner ;
+}
+
+vector<Point2i> EdgeDetection::getCorner2(Mat img) {
     vector<Point2i> coordCorner;
 
     /// recréation d'un mask quivabien

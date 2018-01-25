@@ -52,6 +52,7 @@ public:
      *      img : l'image où il faut détecter les couleurs
      */
     std::vector<cv::Point2i> getCorner(cv::Mat img);
+    std::vector<cv::Point2i> getCorner2(cv::Mat img);
 
     /** détecte les lignes dans une image et renvoie les coordonnées des extrémités
      * @params
