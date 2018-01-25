@@ -45,14 +45,27 @@ public:
      */
     cv::Mat colorCalibration(cv::Mat img);
 
+    /** contruit le masque qui sert de base a tout les autres
+      * @param
+     *      img : l'image de depart
+     * @return
+     *      renvoie le masque cree
+     */
     cv::Mat buildBasicMask(cv::Mat img);
 
-    /** détecte les couleurs d'une image
+    /** détecte les coins de la feuille dans le voisinnage des anciesn coins
+     * si les coins ne sont pas convenables, la fonction appelle getCornerMinMax
      * @params
-     *      img : l'image où il faut détecter les couleurs
+     *      img : l'image où il faut détecter les coins
      */
     std::vector<cv::Point2i> getCorner(cv::Mat img);
-    std::vector<cv::Point2i> getCorner2(cv::Mat img);
+
+    /** détecte les coins de la feuille en parcourant entierement le masque
+     * @params
+     *      mask : le masque où il faut détecter les coins
+     */
+    std::vector<cv::Point2i> getCornerMinMax(cv::Mat mask);
+
 
     /** détecte les lignes dans une image et renvoie les coordonnées des extrémités
      * @params

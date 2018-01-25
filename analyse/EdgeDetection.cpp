@@ -56,6 +56,7 @@ Mat EdgeDetection::colorCalibration(Mat img){
 
 }
 
+/// cree un le masque qui sert de point de depart pour tout les autres
 Mat EdgeDetection::buildBasicMask(Mat img){
     Mat imgGrey;
     cvtColor(img, imgGrey, COLOR_RGB2GRAY);
@@ -112,6 +113,7 @@ Mat EdgeDetection::buildBasicMask(Mat img){
     inRange(imgGrey, maxWhite - 60, 255, mask);
     return mask;
 }
+
 vector<Point2i> EdgeDetection::getCorner(Mat img) {
     vector<Point2i> coordCorner;
 
@@ -133,7 +135,7 @@ vector<Point2i> EdgeDetection::getCorner(Mat img) {
     dilate(newMask, newMask, kernel1);
     erode(newMask, newMask, kernel1);
 
-    int trackingSize = 25;
+    int trackingSize = 15;
     int imax, jmax, noirMax,nbNoirs, kernel =7;
 
     for (int ip = 0; ip < 4; ip++) {
@@ -154,7 +156,7 @@ vector<Point2i> EdgeDetection::getCorner(Mat img) {
                         }
                     }
 
-                    if (nbNoirs > kernel*kernel*2 && nbNoirs > noirMax) {
+                    if (nbNoirs > kernel*kernel*4*3/5 && nbNoirs > noirMax) {
                         noirMax = nbNoirs;
                         imax = i;
                         jmax = j;
@@ -166,27 +168,32 @@ vector<Point2i> EdgeDetection::getCorner(Mat img) {
     }
     coordCorner = pointsVerification(coordCorner);
     bool isOk = true;
-
+    bool isOk2 = true;
     for(int i = 0; i < 4; i++){
         isOk &= coordCorner[i].x != 0 && coordCorner[i].y != 0 ;
-//        points[i][0] = coordCorner[i].x;
-//        points[i][1] = coordCorner[i].y;
-        circle(newMask, Point(coordCorner[i].x,coordCorner[i].y),i*20+8,Scalar(255,0,0));
+        for(int j = i+1 ; j<4 ; j++){
+            isOk2&= (coordCorner[i].x < coordCorner[j].x - 10 || coordCorner[i].x > coordCorner[j].x +10
+                    || coordCorner[i].y < coordCorner[j].y - 10 || coordCorner[i].y > coordCorner[j].y +10) ;
+        }
     }
+    isOk&=isOk2;
 
     if(isOk){
-        cout << "VOISINAGE" << endl;
-        for(int i = 0; i < 4; i++){
-        points[i][0] = coordCorner[i].x;
-        points[i][1] = coordCorner[i].y;
-        }
-        namedWindow("newMask",WINDOW_AUTOSIZE);
-        imshow("newMask",newMask);
+        //cout << "VOISINAGE" << endl;
+
     }
     else{
-        cout << "PARCOURS ENTIER" << endl;
-        coordCorner = getCorner2(img);
+        //cout << "PARCOURS ENTIER" << endl;
+        coordCorner = getCornerMinMax(newMask);
     }
+
+    for(int i = 0; i < 4; i++){
+        circle(newMask, Point(coordCorner[i].x,coordCorner[i].y),i*20+8,Scalar(255,0,0));
+        points[i][0] = coordCorner[i].x;
+        points[i][1] = coordCorner[i].y;
+    }
+//    namedWindow("newMask",WINDOW_AUTOSIZE);
+//    imshow("newMask",newMask);
 
     StartingPointX = (coordCorner[0].x + coordCorner[1].x + coordCorner[2].x + coordCorner[3].x)/4 ;
     StartingPointY = (coordCorner[0].y + coordCorner[1].y + coordCorner[2].y + coordCorner[3].y)/4 ;
@@ -194,26 +201,14 @@ vector<Point2i> EdgeDetection::getCorner(Mat img) {
     return coordCorner ;
 }
 
-vector<Point2i> EdgeDetection::getCorner2(Mat img) {
+vector<Point2i> EdgeDetection::getCornerMinMax(Mat mask) {
     vector<Point2i> coordCorner;
 
     /// recréation d'un mask quivabien
-    Mat newMask = buildBasicMask(img);
+    Mat newMask = mask;
     int rows = newMask.rows;
     int cols = newMask.cols;
 
-    Mat maskTemp = newMask.clone();
-    cv::floodFill(maskTemp, cv::Point(StartingPointX, StartingPointY), CV_RGB(0, 0, 0));
-    maskTemp = ~maskTemp;
-    newMask = maskTemp & newMask;
-    maskTemp = newMask.clone();
-    cv::floodFill(maskTemp, cv::Point(0,0), CV_RGB(255, 255, 255));
-    maskTemp = ~maskTemp;
-    newMask= newMask | maskTemp;
-    Mat kernel1;
-    kernel1 = getStructuringElement(1, Size(7,7), Point(2,2));
-    dilate(newMask, newMask, kernel1);
-    erode(newMask, newMask, kernel1);
 
     int minxy = cols+rows, xminxy, yminxy;
     int maxx_y = -cols-rows, xmaxx_y, ymaxx_y ;
@@ -249,159 +244,9 @@ vector<Point2i> EdgeDetection::getCorner2(Mat img) {
     coordCorner.push_back(Point(xmaxxy,ymaxxy));
     coordCorner.push_back(Point(xmaxy_x,ymaxy_x));
 
-    for(int i = 0; i < 4; i++){
-        circle(newMask, Point(coordCorner[i].x,coordCorner[i].y),i*20+8,Scalar(255,0,0));
-        points[i][0] = coordCorner[i].x;
-        points[i][1] = coordCorner[i].y;
-    }
-    namedWindow("newMask",WINDOW_AUTOSIZE);
-    imshow("newMask",newMask);
-
-    StartingPointX = (coordCorner[0].x + coordCorner[1].x + coordCorner[2].x + coordCorner[3].x)/4 ;
-    StartingPointY = (coordCorner[0].y + coordCorner[1].y + coordCorner[2].y + coordCorner[3].y)/4 ;
-
     return coordCorner ;
 
 }
-/// Fonction permettant de récupérer les 4 coins du plan
-//vector<Point2i> EdgeDetection::getCorner(Mat img) {
-//
-//    ///Initialisation des variables
-//    std::vector<KeyPoint> keypoints;
-//    vector<Point2i> coordCorner;
-//
-//    /// recréation d'un mask quivabien
-//    Mat newMask = buildBasicMask(img);
-//    int rows = newMask.rows;
-//    int cols = newMask.cols;
-//
-//    Mat maskTemp = newMask.clone();
-//    cv::floodFill(maskTemp, cv::Point(StartingPointX, StartingPointY), CV_RGB(0, 0, 0));
-//    maskTemp = ~maskTemp;
-//    newMask = maskTemp & newMask;
-//    maskTemp = newMask.clone();
-//    cv::floodFill(maskTemp, cv::Point(0,0), CV_RGB(255, 255, 255));
-//    maskTemp = ~maskTemp;
-//    newMask= newMask | maskTemp;
-//    Mat kernel1;
-//    kernel1 = getStructuringElement(1, Size(7,7), Point(2,2));
-//    dilate(newMask, newMask, kernel1);
-//    erode(newMask, newMask, kernel1);
-//
-//    int kernel = 10;
-//    int voisin = 30 ;
-//    int tab[4][3] = {{0,0,0},
-//                     {0,0,0},
-//                     {0,0,0},
-//                     {0,0,0}};
-//
-//    int nbNoirs,rangProche,minNoirs,rangMin ;
-//
-////    if (points[0][0] == 0) {
-//        for(int i = 0; i < 4 ; i++) {
-//            for (int j = 0; j < 3; j++) {
-//                tab[i][j] = 0;
-//            }
-//        }
-//        for (int i = 0; i < rows; i++) {
-//            for (int j = 0; j < cols; j++) {
-//                if (newMask.at<uchar>(i, j) == 255) {
-//                    nbNoirs = 0;
-//                    ///calcul du nb de noirs dans le voisinage
-//                    for (int ii = i - kernel; ii < i + kernel; ii++) {
-//                        for (int jj = j - kernel; jj < j + kernel; jj++) {
-//                            if (ii >= 0 && ii < rows && jj >= 0 && jj < cols && newMask.at<uchar>(ii, jj) == 0) {
-//                                nbNoirs++;
-//                            }
-//                        }
-//                    }
-//                    if (nbNoirs > kernel * kernel * 2) {
-//                        ///on regarde si il est proche d'un autre point
-//                        rangProche = -1;
-//                        for (int iTab = 0; iTab < 4; iTab++) {
-//                            if (i > tab[iTab][2] - voisin && i < tab[iTab][2] + voisin &&
-//                                j > tab[iTab][1] - voisin &&
-//                                j < tab[iTab][1] + voisin) {
-//                                rangProche = iTab;
-//                            }
-//                        }
-//                        ///si oui
-//                        if (rangProche != -1 && nbNoirs > tab[rangProche][0]) {
-//                            tab[rangProche][0] = nbNoirs;
-//                            tab[rangProche][1] = j;
-//                            tab[rangProche][2] = i;
-//                        } else if (rangProche == -1) {
-//                            minNoirs = kernel * kernel * 4;
-//                            rangMin = 0;
-//                            for (int iTab = 0; iTab < 4; iTab++) {
-//                                if (tab[iTab][0] < minNoirs) {
-//                                    minNoirs = tab[iTab][0];
-//                                    rangMin = iTab;
-//                                }
-//                            }
-//                            if (minNoirs < nbNoirs) {
-//                                tab[rangMin][0] = nbNoirs;
-//                                tab[rangMin][1] = j;
-//                                tab[rangMin][2] = i;
-//                            }
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//        for (int i = 0; i < 4; i++) {
-//            coordCorner.push_back(Point(tab[i][1], tab[i][2]));
-//        }
-////    } else {
-////        int trackingSize = 50;
-////        int imax, jmax, noirMax;
-////
-////        for (int ip = 0; ip < 4; ip++) {
-////            imax = 0;
-////            jmax = 0;
-////            noirMax = 0;
-////            for (int i = points[ip][1] - trackingSize; i < points[ip][1] + trackingSize; i++) {
-////                for (int j = points[ip][0] - trackingSize; j < points[ip][0] + trackingSize; j++) {
-////                    if (i >= 0 && i < rows && j >= 0 && j < cols && newMask.at<uchar>(i, j) == 255) {
-////                        nbNoirs = 0;
-////                        ///calcul du nb de noirs dans le voisinage
-////                        for (int ii = i - kernel; ii < i + kernel; ii++) {
-////                            for (int jj = j - kernel; jj < j + kernel; jj++) {
-////                                if (ii >= 0 && ii < rows && jj >= 0 && jj < cols &&
-////                                    newMask.at<uchar>(ii, jj) == 0) {
-////                                    nbNoirs++;
-////                                }
-////                            }
-////                        }
-////
-////                        if (nbNoirs > noirMax) {
-////                            noirMax = nbNoirs;
-////                            imax = i;
-////                            jmax = j;
-////                        }
-////                    }
-////                }
-////            }
-////            coordCorner.push_back(Point(jmax, imax));
-////        }
-////    }
-//
-//    /// On ordonne nos points
-//    coordCorner = pointsVerification(coordCorner);
-//
-//    for(int i = 0; i < 4; i++){
-//        points[i][0] = coordCorner[i].x;
-//        points[i][1] = coordCorner[i].y;
-////        cout << points[i][0] << "  " << points[i][1] << endl ;
-//        circle(newMask, Point(coordCorner[i].x,coordCorner[i].y),i*20+8,Scalar(255,0,0));
-//    }
-//
-////    namedWindow("mask",WINDOW_AUTOSIZE);e
-//    StartingPointX = (coordCorner[0].x + coordCorner[1].x + coordCorner[2].x + coordCorner[3].x)/4 ;
-//    StartingPointY = (coordCorner[0].y + coordCorner[1].y + coordCorner[2].y + coordCorner[3].y)/4 ;
-//    return coordCorner;
-//
-//}
 
 ///Fonctions permettant de détecter le départ et l'arrivé de la boule
 vector<Point2i> EdgeDetection::startEndDetection(Mat img) {
@@ -431,11 +276,6 @@ vector<Point2i> EdgeDetection::startEndDetection(Mat img) {
         }
     }
     return coordPoint;
-}
-
-/// fonction utilisée pour trier les points
-bool sortByY(Point p1, Point p2){
-    return p1.y>p2.y ;
 }
 
 
@@ -615,6 +455,10 @@ vector<vector<Point2i>> EdgeDetection::filterDouble(vector<vector<Point2i>> vect
     }
 
     return linesFilter ;
+}
+/// fonction utilisée pour trier les points
+bool sortByY(Point p1, Point p2){
+    return p1.y>p2.y ;
 }
 
 ///Fonction permettant de savoir s'il y a une inversion dans le plan
